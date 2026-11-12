@@ -1219,18 +1219,11 @@
             const sorted = [...tiedCandidates].sort((a, b) => (tbVotes[b.id] || 0) - (tbVotes[a.id] || 0));
             const winners = sorted.slice(0, slotsRemaining);
 
+            // Keep main poll votes completely unchanged; only assign slot priority to the tiebreaker winners
             tiebreakerWinners = {};
             let priority = 100;
             winners.forEach(hero => {
-                // Also add their tiebreaker votes to their total poll score
-                votes[hero.id] = (votes[hero.id] || 0) + (tbVotes[hero.id] || 0);
                 tiebreakerWinners[hero.id] = priority--;
-            });
-            // Also record any tiebreaker votes cast on non-advancing contenders
-            sorted.slice(slotsRemaining).forEach(hero => {
-                if ((tbVotes[hero.id] || 0) > 0) {
-                    votes[hero.id] = (votes[hero.id] || 0) + tbVotes[hero.id];
-                }
             });
 
             saveState();
