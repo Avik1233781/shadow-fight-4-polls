@@ -73,15 +73,6 @@
             0% { opacity: 0; transform: scale(0.92) translateY(8px); }
             100% { opacity: 1; transform: scale(1) translateY(0); }
         }
-
-        .pulse-badge {
-            animation: pulseGlow 2s infinite;
-        }
-
-        @keyframes pulseGlow {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.65; }
-        }
     </style>
 </head>
 <body class="text-slate-100 min-h-screen font-sans selection:bg-amber-500 selection:text-black pb-20">
@@ -180,7 +171,7 @@
                 </div>
             </div>
 
-            <!-- Tie Warning Banner (Shown dynamically when boundary slots have tied votes) -->
+            <!-- Tie Warning Banner -->
             <div id="live-tie-alert" class="hidden mb-4 rounded-xl bg-amber-500/10 border border-amber-500/40 px-4 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div class="flex items-center gap-2.5 text-xs sm:text-sm text-amber-200">
                     <i class="ph-fill ph-warning-octagon text-xl text-amber-400 flex-shrink-0"></i>
@@ -227,7 +218,6 @@
 
                 <!-- Rarity & Search Bar -->
                 <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-                    <!-- Rarity Filter -->
                     <select id="rarity-select" onchange="setRarityFilter(this.value)" class="bg-sf-bg border border-sf-border rounded-xl px-3.5 py-2 text-xs sm:text-sm text-slate-200 focus:outline-none focus:border-amber-500">
                         <option value="ALL">All Rarities (31)</option>
                         <option value="Common">Common (6)</option>
@@ -236,14 +226,12 @@
                         <option value="Legendary">Legendary (6)</option>
                     </select>
 
-                    <!-- Sort Order -->
                     <select id="sort-select" onchange="setSortMode(this.value)" class="bg-sf-bg border border-sf-border rounded-xl px-3.5 py-2 text-xs sm:text-sm text-slate-200 focus:outline-none focus:border-amber-500">
                         <option value="wiki">Wiki Order (By Faction & Rarity)</option>
                         <option value="votes-desc">Highest Votes First</option>
                         <option value="name-asc">Alphabetical (A - Z)</option>
                     </select>
 
-                    <!-- Search Input -->
                     <div class="relative flex-1 sm:w-56">
                         <i class="ph ph-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"></i>
                         <input 
@@ -303,7 +291,6 @@
                 </p>
 
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <!-- Legion Box -->
                     <div class="bg-red-950/20 border border-red-500/30 rounded-xl p-4 space-y-2">
                         <div class="flex items-center justify-between">
                             <span class="font-bold text-red-400 uppercase tracking-wider">Legion</span>
@@ -317,7 +304,6 @@
                         </ul>
                     </div>
 
-                    <!-- Dynasty Box -->
                     <div class="bg-emerald-950/20 border border-emerald-500/30 rounded-xl p-4 space-y-2">
                         <div class="flex items-center justify-between">
                             <span class="font-bold text-emerald-400 uppercase tracking-wider">Dynasty</span>
@@ -331,7 +317,6 @@
                         </ul>
                     </div>
 
-                    <!-- Heralds Box -->
                     <div class="bg-purple-950/20 border border-purple-500/30 rounded-xl p-4 space-y-2">
                         <div class="flex items-center justify-between">
                             <span class="font-bold text-purple-400 uppercase tracking-wider">Heralds</span>
@@ -388,7 +373,7 @@
                         Multiple heroes are tied with the same low vote count for the remaining Top 6 slots!
                     </p>
                     <p class="text-xs text-slate-400">
-                        Cast <strong>multiple tiebreaker votes</strong> (+1 / +5) on any tied heroes below. The top <span id="tiebreaker-needed-inline" class="text-amber-400 font-bold">2</span> hero(es) with the most tiebreaker votes will claim the open slots!
+                        Cast <strong>separate tiebreaker votes</strong> (+1 / +5) on any tied heroes below. Main poll votes remain unchanged—only the top <span id="tiebreaker-needed-inline" class="text-amber-400 font-bold">2</span> tiebreaker winner(s) will occupy the open slots!
                     </p>
                 </div>
                 <div class="flex items-center gap-3 flex-shrink-0">
@@ -416,7 +401,7 @@
             <div class="space-y-3">
                 <span class="text-xs font-bold uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
                     <i class="ph-fill ph-lightning"></i>
-                    <span id="tiebreaker-Instruction-label">Cast multiple votes on the tied contenders below:</span>
+                    <span id="tiebreaker-Instruction-label">Cast separate tiebreaker votes on the tied contenders below:</span>
                 </span>
                 <div id="tiebreaker-candidates-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5">
                     <!-- Populated via JS -->
@@ -547,25 +532,62 @@
         // State Management
         let votes = {}; // { characterId: voteCount }
         let lastVotedTime = {}; // { characterId: timestamp } for tie-breaking
-        let tiebreakerWinners = {}; // { characterId: rankOrder } chosen during manual tiebreaker
+        let tiebreakerWinners = {}; // { characterId: rankOrder } chosen during tiebreaker
+        let tiebreakerVoteScores = {}; // { characterId: separateTiebreakerVotes } kept strictly separate from main votes
         let activeFaction = 'ALL';
         let activeRarity = 'ALL';
-        let activeSort = 'wiki';
+        let sortMode = 'wiki';
         let searchQuery = '';
+        let toastTimeout = null;
 
         // Active Tiebreaker Session State
         let currentTieSession = {
             lockedHeroes: [],
             tiedCandidates: [],
             slotsRemaining: 0,
-            tiedVoteCount: 0,
-            tbVotes: {} // { characterId: tiebreakerVoteCount }
+            tieVoteCount: 0,
+            tbVotes: {}
         };
 
-        // Storage Key
-        const STORAGE_KEY = 'sf4_character_poll_votes_v1';
+        const STORAGE_KEY = 'sf4_character_poll_v2';
 
-        function loadState() {
+        // Styling helpers
+        const FACTION_META = {
+            Legion: {
+                color: 'text-red-400',
+                bg: 'bg-red-500/10',
+                border: 'border-red-500/30',
+                gradient: 'from-red-950/60 via-sf-card to-sf-card',
+                icon: 'ph-shield-chevron',
+                quote: 'A powerful faction of warriors who respect strength and honor. Based on hierarchy and military discipline.'
+            },
+            Dynasty: {
+                color: 'text-emerald-400',
+                bg: 'bg-emerald-500/10',
+                border: 'border-emerald-500/30',
+                gradient: 'from-emerald-950/60 via-sf-card to-sf-card',
+                icon: 'ph-flower-lotus',
+                quote: 'Citizens of the Dynastian Empire are agile and smart. Their ability to avoid direct conflict brought them wealth.'
+            },
+            Heralds: {
+                color: 'text-purple-400',
+                bg: 'bg-purple-500/10',
+                border: 'border-purple-500/30',
+                gradient: 'from-purple-950/60 via-sf-card to-sf-card',
+                icon: 'ph-Codesandbox-logo',
+                quote: 'People who study secrets of shadow energy. These scientists are well-known for their precision in fight.'
+            }
+        };
+
+        const RARITY_META = {
+            Common: { badge: 'bg-slate-700/60 text-slate-300 border-slate-600', text: 'text-slate-300', bar: 'bg-slate-400', ring: 'border-slate-500/40' },
+            Rare: { badge: 'bg-sky-500/15 text-sky-300 border-sky-500/40', text: 'text-sky-400', bar: 'bg-sky-400', ring: 'border-sky-500/50' },
+            Epic: { badge: 'bg-purple-500/15 text-purple-300 border-purple-500/40', text: 'text-purple-400', bar: 'bg-purple-400', ring: 'border-purple-500/50' },
+            Legendary: { badge: 'bg-amber-500/15 text-amber-300 border-amber-500/40', text: 'text-amber-400', bar: 'bg-amber-400', ring: 'border-amber-500/60' }
+        };
+
+        // Initialize app
+        function initApp() {
             try {
                 const saved = localStorage.getItem(STORAGE_KEY);
                 if (saved) {
@@ -573,254 +595,206 @@
                     votes = parsed.votes || {};
                     lastVotedTime = parsed.lastVotedTime || {};
                     tiebreakerWinners = parsed.tiebreakerWinners || {};
+                    tiebreakerVoteScores = parsed.tiebreakerVoteScores || {};
                 }
             } catch (e) {
                 votes = {};
                 lastVotedTime = {};
                 tiebreakerWinners = {};
+                tiebreakerVoteScores = {};
             }
-            // Initialize missing keys
+
             INITIAL_CHARACTERS.forEach(c => {
                 if (typeof votes[c.id] !== 'number') votes[c.id] = 0;
-                if (typeof lastVotedTime[c.id] !== 'number') lastVotedTime[c.id] = 0;
             });
+
+            renderAll();
         }
 
         function saveState() {
             try {
-                localStorage.setItem(STORAGE_KEY, JSON.stringify({ votes, lastVotedTime, tiebreakerWinners }));
+                localStorage.setItem(STORAGE_KEY, JSON.stringify({
+                    votes,
+                    lastVotedTime,
+                    tiebreakerWinners,
+                    tiebreakerVoteScores
+                }));
             } catch (e) {
                 // Ignore storage errors
             }
         }
 
-        // Generate bespoke SVG Avatar for each Hero based on Faction & Rarity
-        function createHeroAvatarSVG(hero, sizeClasses = "w-16 h-16 sm:w-20 sm:h-20", iconSize = "text-2xl sm:text-3xl") {
-            const factionPalettes = {
-                Legion: { bg1: '#450a0a', bg2: '#991b1b', accent: '#f87171' },
-                Dynasty: { bg1: '#064e3b', bg2: '#047857', accent: '#34d399' },
-                Heralds: { bg1: '#3b0764', bg2: '#6b21a8', accent: '#c084fc' }
-            };
-            const rarityBorder = {
-                Common: '#94a3b8',
-                Rare: '#38bdf8',
-                Epic: '#c084fc',
-                Legendary: '#fbbf24'
-            };
-
-            const pal = factionPalettes[hero.faction];
-            const rim = rarityBorder[hero.rarity];
-            const initials = hero.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
-
-            return `
-                <div class="relative ${sizeClasses} rounded-2xl overflow-hidden flex-shrink-0 border-2 shadow-inner flex items-center justify-center select-none"
-                     style="border-color: ${rim}; background: linear-gradient(135deg, ${pal.bg1} 0%, ${pal.bg2} 100%);">
-                    <!-- Decorative geometric silhouette -->
-                    <svg class="absolute inset-0 w-full h-full opacity-25" viewBox="0 0 100 100" fill="none">
-                        <circle cx="50" cy="34" r="18" fill="${pal.accent}"/>
-                        <path d="M20 92 C20 65, 80 65, 80 92 Z" fill="${pal.accent}"/>
-                        <circle cx="50" cy="50" r="46" stroke="${rim}" stroke-width="2" stroke-dasharray="6 4"/>
-                    </svg>
-                    <span class="relative z-10 ${iconSize} filter drop-shadow">${hero.icon}</span>
-                    <span class="absolute bottom-1 right-1.5 text-[10px] font-extrabold tracking-tighter px-1 rounded bg-black/60 text-white/90">
-                        ${initials}
-                    </span>
-                </div>
-            `;
-        }
-
-        // Compute Top 6 Characters (with >= 1 vote) sorted by highest votes, respecting manual tiebreaker winners first
-        function getTopSixRanked() {
-            return INITIAL_CHARACTERS
-                .filter(c => (votes[c.id] || 0) > 0)
-                .sort((a, b) => {
-                    const diff = (votes[b.id] || 0) - (votes[a.id] || 0);
-                    if (diff !== 0) return diff;
-                    // Check if resolved via Tiebreaker Arena
-                    const tbA = tiebreakerWinners[a.id] || 0;
-                    const tbB = tiebreakerWinners[b.id] || 0;
-                    if (tbA !== tbB) return tbB - tbA;
-                    // Earlier reached or recent interaction tie-break
-                    return (lastVotedTime[a.id] || 0) - (lastVotedTime[b.id] || 0);
-                })
-                .slice(0, 6);
-        }
-
-        /**
-         * Analyze if there is a tie at the 6th-slot cutoff boundary.
-         * Example: 4 heroes have >3 votes, and 5 heroes are tied at 3 votes competing for the last 2 slots.
-         */
-        function analyzeBoundaryTie() {
-            const votedHeroes = INITIAL_CHARACTERS
-                .filter(c => (votes[c.id] || 0) > 0)
-                .sort((a, b) => (votes[b.id] || 0) - (votes[a.id] || 0));
-
-            if (votedHeroes.length <= 6) {
-                return { hasTie: false, lockedHeroes: votedHeroes, tiedCandidates: [], slotsRemaining: 0, tiedVoteCount: 0 };
-            }
-
-            // Vote count of the character at index 5 (the 6th slot)
-            const cutoffVote = votes[votedHeroes[5].id];
-            // Check if the 7th character (index 6) ALSO has the exact same cutoffVote
-            const seventhVote = votes[votedHeroes[6].id];
-
-            if (cutoffVote !== seventhVote) {
-                return { hasTie: false, lockedHeroes: votedHeroes.slice(0, 6), tiedCandidates: [], slotsRemaining: 0, tiedVoteCount: 0 };
-            }
-
-            // Find all characters strictly above the cutoff vote (safely locked in Top 6)
-            const lockedHeroes = votedHeroes.filter(c => (votes[c.id] || 0) > cutoffVote);
-            // Find all characters tied at the cutoff vote (both inside and outside the remaining slots)
-            const tiedCandidates = votedHeroes.filter(c => (votes[c.id] || 0) === cutoffVote);
-            const slotsRemaining = 6 - lockedHeroes.length;
-
-            // Check if the user has already resolved this exact tie via tiebreakerWinners
-            const resolvedWinnersInGroup = tiedCandidates.filter(c => (tiebreakerWinners[c.id] || 0) > 0);
-            const isAlreadyResolved = resolvedWinnersInGroup.length === slotsRemaining;
-
-            return {
-                hasTie: true,
-                isAlreadyResolved,
-                lockedHeroes,
-                tiedCandidates,
-                slotsRemaining,
-                tiedVoteCount: cutoffVote
-            };
-        }
-
-        // Vote Manipulation
-        function addVote(charId, amount = 1) {
+        // Cast or remove votes
+        function changeVote(charId, amount) {
             const current = votes[charId] || 0;
             const next = Math.max(0, current + amount);
+            if (next === current) return;
+
             votes[charId] = next;
-            // Clear previous manual tiebreakers when votes change so ties are re-evaluated fresh
+            // Clear previous manual tiebreakers when main votes change so ties are re-evaluated fresh
             tiebreakerWinners = {};
+            tiebreakerVoteScores = {};
             if (amount > 0 && current === 0) {
                 lastVotedTime[charId] = Date.now();
             }
+
             saveState();
             renderAll();
 
             const hero = INITIAL_CHARACTERS.find(c => c.id === charId);
             if (hero && amount > 0) {
-                showToast(`+${amount} Vote${amount > 1 ? 's' : ''} for ${hero.name}! (Total: ${next})`);
+                showToast(`+${amount} vote${amount > 1 ? 's' : ''} for ${hero.name} (Total: ${next})`);
             }
+        }
+
+        // Get sorted candidates with > 0 votes for the Top 6 slots
+        function getTopSixLeaders() {
+            return INITIAL_CHARACTERS
+                .map(c => ({
+                    ...c,
+                    voteCount: votes[c.id] || 0,
+                    tbPriority: tiebreakerWinners[c.id] || 0,
+                    tbSeparateVotes: tiebreakerVoteScores[c.id] || 0
+                }))
+                .filter(c => c.voteCount > 0)
+                .sort((a, b) => {
+                    if (b.voteCount !== a.voteCount) return b.voteCount - a.voteCount;
+                    if (b.tbPriority !== a.tbPriority) return b.tbPriority - a.tbPriority;
+                    const timeA = lastVotedTime[a.id] || 0;
+                    const timeB = lastVotedTime[b.id] || 0;
+                    if (timeA !== timeB) return timeA - timeB;
+                    return a.wikiOrder - b.wikiOrder;
+                })
+                .slice(0, 6);
+        }
+
+        /**
+         * Detects if there is an unresolved tie at the cutoff boundary of the Top 6 slots.
+         */
+        function detectCutoffTie() {
+            const activeContenders = INITIAL_CHARACTERS
+                .map(c => ({ ...c, voteCount: votes[c.id] || 0 }))
+                .filter(c => c.voteCount > 0)
+                .sort((a, b) => b.voteCount - a.voteCount || a.wikiOrder - b.wikiOrder);
+
+            if (activeContenders.length <= 6) {
+                return { hasTie: false, lockedHeroes: activeContenders, tiedCandidates: [], slotsRemaining: 0, tieVoteCount: 0 };
+            }
+
+            const sixthHero = activeContenders[5];
+            const seventhHero = activeContenders[6];
+
+            if (sixthHero.voteCount !== seventhHero.voteCount) {
+                return { hasTie: false, lockedHeroes: activeContenders.slice(0, 6), tiedCandidates: [], slotsRemaining: 0, tieVoteCount: 0 };
+            }
+
+            const cutoffScore = sixthHero.voteCount;
+            const lockedHeroes = activeContenders.filter(c => c.voteCount > cutoffScore);
+            const tiedCandidates = activeContenders.filter(c => c.voteCount === cutoffScore);
+            const slotsRemaining = 6 - lockedHeroes.length;
+
+            const resolvedCount = tiedCandidates.filter(c => (tiebreakerWinners[c.id] || 0) > 0).length;
+            if (resolvedCount === slotsRemaining) {
+                return { hasTie: false, lockedHeroes, tiedCandidates, slotsRemaining, tieVoteCount: cutoffScore };
+            }
+
+            return {
+                hasTie: true,
+                lockedHeroes,
+                tiedCandidates,
+                slotsRemaining,
+                tieVoteCount: cutoffScore
+            };
+        }
+
+        // Get total votes across all 31 characters
+        function getTotalVotes() {
+            return Object.values(votes).reduce((sum, v) => sum + v, 0);
         }
 
         // Render Top 6 Slots
         function renderTopSixSlots() {
             const container = document.getElementById('top-six-slots');
-            const topSix = getTopSixRanked();
-            const totalVotes = Object.values(votes).reduce((acc, v) => acc + v, 0);
-            const tieInfo = analyzeBoundaryTie();
+            const leaders = getTopSixLeaders();
+            const totalVotes = getTotalVotes();
 
-            document.getElementById('slots-filled-count').textContent = `${topSix.length} / 6`;
+            document.getElementById('slots-filled-count').textContent = `${leaders.length} / 6`;
             document.getElementById('total-votes-count').textContent = totalVotes.toLocaleString();
 
-            // Show or hide Live Tie Alert Banner
+            const tieStatus = detectCutoffTie();
             const alertBox = document.getElementById('live-tie-alert');
             const alertText = document.getElementById('live-tie-alert-text');
-            if (tieInfo.hasTie && !tieInfo.isAlreadyResolved) {
+            if (tieStatus.hasTie) {
                 alertBox.classList.remove('hidden');
-                alertText.innerHTML = `<strong>Cutoff Tie Detected:</strong> <strong>${tieInfo.tiedCandidates.length} characters</strong> are tied with <strong>${tieInfo.tiedVoteCount} vote${tieInfo.tiedVoteCount > 1 ? 's' : ''}</strong> competing for the last <strong>${tieInfo.slotsRemaining} slot${tieInfo.slotsRemaining > 1 ? 's' : ''}</strong>! Click "Resolve Tie & End Vote" to launch the Tiebreaker.`;
+                alertText.innerHTML = `<strong>Cutoff Tie Detected:</strong> ${tieStatus.tiedCandidates.length} heroes are tied at <strong>${tieStatus.tieVoteCount} vote${tieStatus.tieVoteCount === 1 ? '' : 's'}</strong> for the last <strong>${tieStatus.slotsRemaining} slot${tieStatus.slotsRemaining === 1 ? '' : 's'}</strong>! Click <strong>End Vote</strong> to start the Tiebreaker.`;
             } else {
                 alertBox.classList.add('hidden');
             }
 
-            const rarityBadgeColors = {
-                Common: 'bg-slate-500/20 text-slate-300 border-slate-500/40',
-                Rare: 'bg-sky-500/20 text-sky-300 border-sky-500/40',
-                Epic: 'bg-purple-500/20 text-purple-300 border-purple-500/40',
-                Legendary: 'bg-amber-500/20 text-amber-300 border-amber-500/40'
-            };
-
-            const factionBadgeColors = {
-                Legion: 'text-red-400',
-                Dynasty: 'text-emerald-400',
-                Heralds: 'text-purple-400'
-            };
-
             let html = '';
-
             for (let i = 0; i < 6; i++) {
-                const hero = topSix[i];
-                const rankNum = i + 1;
+                const hero = leaders[i];
+                const slotNum = i + 1;
 
                 if (hero) {
-                    const heroVotes = votes[hero.id] || 0;
-                    const voteShare = totalVotes > 0 ? Math.round((heroVotes / totalVotes) * 100) : 0;
-                    const isTiedSlot = tieInfo.hasTie && heroVotes === tieInfo.tiedVoteCount;
+                    const fMeta = FACTION_META[hero.faction];
+                    const rMeta = RARITY_META[hero.rarity];
+                    const pct = totalVotes > 0 ? Math.round((hero.voteCount / totalVotes) * 100) : 0;
                     const wonTiebreaker = (tiebreakerWinners[hero.id] || 0) > 0;
-
-                    const rankColors = [
-                        'from-amber-400 to-yellow-600 text-slate-950', // #1 Gold
-                        'from-slate-200 to-slate-400 text-slate-950',  // #2 Silver
-                        'from-amber-600 to-amber-800 text-white',      // #3 Bronze
-                        'from-indigo-500 to-indigo-700 text-white',
-                        'from-indigo-500 to-indigo-700 text-white',
-                        'from-indigo-500 to-indigo-700 text-white'
-                    ];
+                    const isTiedSlot = tieStatus.hasTie && hero.voteCount === tieStatus.tieVoteCount;
 
                     html += `
-                        <div class="slot-card-enter relative rounded-2xl bg-gradient-to-b from-slate-800/90 to-sf-bg border-2 ${isTiedSlot && !wonTiebreaker ? 'border-rose-500/70' : 'border-amber-500/50'} p-3.5 flex flex-col justify-between shadow-xl rarity-glow-${hero.rarity}">
-                            <!-- Top Row: Rank Badge & Remove Button -->
+                        <div class="slot-card-enter relative rounded-xl bg-gradient-to-b ${fMeta.gradient} border ${isTiedSlot ? 'border-amber-400 ring-1 ring-amber-400/50' : rMeta.ring} p-3.5 flex flex-col justify-between shadow-lg group">
                             <div class="flex items-center justify-between gap-1 mb-2">
-                                <span class="px-2 py-0.5 rounded-lg text-xs font-extrabold bg-gradient-to-r ${rankColors[i]} shadow">
-                                    #${rankNum} SLOT
+                                <span class="px-2 py-0.5 rounded-md bg-amber-500 text-slate-950 font-extrabold text-[11px] tracking-wide">
+                                    SLOT #${slotNum}
                                 </span>
                                 ${wonTiebreaker ? `
-                                    <span class="px-1.5 py-0.5 rounded bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-[10px] font-bold" title="Won Tiebreaker">
-                                        TB WIN
+                                    <span class="px-1.5 py-0.5 rounded bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-[10px] font-bold" title="Won Separate Tiebreaker (${tiebreakerVoteScores[hero.id] || 0} TB votes)">
+                                        TB: +${tiebreakerVoteScores[hero.id] || 0}
                                     </span>
                                 ` : isTiedSlot ? `
                                     <span class="px-1.5 py-0.5 rounded bg-rose-500/20 border border-rose-500/40 text-rose-300 text-[10px] font-bold animate-pulse" title="Tied with other heroes">
-                                        TIED (${heroVotes})
+                                        TIED
                                     </span>
-                                ` : ''}
-                                <button onclick="clearCharacterVotes('${hero.id}')" title="Clear votes for ${hero.name}" class="text-slate-400 hover:text-rose-400 transition-colors p-1">
-                                    <i class="ph ph-x text-xs"></i>
-                                </button>
+                                ` : `
+                                    <button onclick="clearCharacterVotes('${hero.id}')" class="opacity-60 hover:opacity-100 text-slate-400 hover:text-rose-400 transition-opacity" title="Clear votes for ${hero.name}">
+                                        <i class="ph ph-x-circle text-base"></i>
+                                    </button>
+                                `}
                             </div>
 
-                            <!-- Center Avatar & Info -->
-                            <div class="flex flex-col items-center text-center my-1">
-                                ${createHeroAvatarSVG(hero)}
-                                <h3 class="font-bold text-sm sm:text-base text-white mt-2.5 line-clamp-1">${hero.name}</h3>
-                                <div class="flex items-center gap-1.5 mt-1">
-                                    <span class="text-[11px] font-semibold ${factionBadgeColors[hero.faction]}">${hero.faction}</span>
+                            <div class="my-1.5 text-center">
+                                <div class="w-12 h-12 mx-auto rounded-xl bg-sf-bg/90 border border-slate-700/80 flex items-center justify-center text-2xl shadow-inner mb-2">
+                                    ${hero.icon}
+                                </div>
+                                <h3 class="font-bold text-sm sm:text-base text-white leading-tight truncate" title="${hero.name}">
+                                    ${hero.name}
+                                </h3>
+                                <div class="flex items-center justify-center gap-1.5 mt-1">
+                                    <span class="text-[10px] font-semibold ${fMeta.color}">${hero.faction}</span>
                                     <span class="text-slate-600">•</span>
-                                    <span class="text-[10px] px-1.5 py-0.2 rounded border ${rarityBadgeColors[hero.rarity]}">${hero.rarity}</span>
+                                    <span class="text-[10px] font-semibold ${rMeta.text}">${hero.rarity}</span>
                                 </div>
                             </div>
 
-                            <!-- Vote Count & Quick +1 -->
-                            <div class="mt-3 pt-2.5 border-t border-slate-800/90 flex items-center justify-between">
-                                <div>
-                                    <span class="block text-xs text-slate-400">Votes (${voteShare}%)</span>
-                                    <span class="font-extrabold text-base text-amber-400">${heroVotes}</span>
-                                </div>
-                                <div class="flex items-center gap-1">
-                                    <button onclick="addVote('${hero.id}', -1)" class="w-7 h-7 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 flex items-center justify-center text-xs font-bold transition">
-                                        -
-                                    </button>
-                                    <button onclick="addVote('${hero.id}', 1)" class="px-2.5 h-7 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 flex items-center justify-center text-xs font-extrabold transition shadow">
-                                        +1
-                                    </button>
-                                </div>
+                            <div class="mt-2 pt-2 border-t border-slate-800/80 flex items-center justify-between">
+                                <span class="text-xs font-extrabold text-amber-400">${hero.voteCount} <span class="font-normal text-slate-400 text-[11px]">votes</span></span>
+                                <span class="text-[11px] font-semibold text-slate-400">${pct}%</span>
                             </div>
                         </div>
                     `;
                 } else {
-                    // Empty Slot Card
                     html += `
-                        <div class="rounded-2xl bg-sf-bg/60 border-2 border-dashed border-slate-800 hover:border-slate-700 p-4 flex flex-col items-center justify-center text-center min-h-[210px] transition-colors group">
-                            <div class="w-14 h-14 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-600 group-hover:text-slate-400 group-hover:scale-105 transition-all mb-3">
-                                <span class="font-display font-bold text-lg">#${rankNum}</span>
+                        <div class="rounded-xl border-2 border-dashed border-slate-800 bg-sf-bg/40 p-3.5 flex flex-col items-center justify-center text-center min-h-[168px] transition-colors hover:border-slate-700">
+                            <span class="px-2 py-0.5 rounded-md bg-slate-800/80 text-slate-400 font-bold text-[10px] tracking-wider mb-2">
+                                SLOT #${slotNum}
+                            </span>
+                            <div class="w-10 h-10 rounded-full bg-slate-800/50 border border-slate-700/50 flex items-center justify-center text-slate-500 mb-2">
+                                <i class="ph ph-plus text-lg"></i>
                             </div>
-                            <p class="font-semibold text-xs sm:text-sm text-slate-400">Empty Slot #${rankNum}</p>
-                            <p class="text-[11px] text-slate-500 mt-1 max-w-[140px]">
-                                Vote on characters below to fill this top slot
-                            </p>
+                            <p class="text-xs font-semibold text-slate-400">Empty Slot</p>
+                            <p class="text-[10px] text-slate-500 mt-0.5">Vote below to fill</p>
                         </div>
                     `;
                 }
@@ -829,199 +803,186 @@
             container.innerHTML = html;
         }
 
-        // Render Character Poll Grid
-        function renderCharacterPoll() {
-            const container = document.getElementById('characters-container');
-            const topSixIds = new Set(getTopSixRanked().map(c => c.id));
-            const maxVoteCount = Math.max(1, ...Object.values(votes));
+        // Clear a single character's votes
+        function clearCharacterVotes(charId) {
+            const hero = INITIAL_CHARACTERS.find(c => c.id === charId);
+            votes[charId] = 0;
+            tiebreakerWinners = {};
+            tiebreakerVoteScores = {};
+            saveState();
+            renderAll();
+            if (hero) {
+                showToast(`Removed ${hero.name} from Top 6 slots.`);
+            }
+        }
 
-            // Filter characters
-            let filtered = INITIAL_CHARACTERS.filter(char => {
-                const matchesFaction = activeFaction === 'ALL' || char.faction === activeFaction;
-                const matchesRarity = activeRarity === 'ALL' || char.rarity === activeRarity;
-                const matchesSearch = searchQuery === '' || 
-                    char.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                    char.weapon.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                    char.faction.toLowerCase().includes(searchQuery.toLowerCase());
-                return matchesFaction && matchesRarity && matchesSearch;
+        // Render main character poll list
+        function renderCharacters() {
+            const container = document.getElementById('characters-container');
+            const totalVotes = getTotalVotes();
+            const leaders = getTopSixLeaders();
+            const topSixIds = new Set(leaders.map(l => l.id));
+            const rankMap = {};
+            leaders.forEach((l, idx) => { rankMap[l.id] = idx + 1; });
+
+            const filtered = INITIAL_CHARACTERS.filter(c => {
+                if (activeFaction !== 'ALL' && c.faction !== activeFaction) return false;
+                if (activeRarity !== 'ALL' && c.rarity !== activeRarity) return false;
+                if (searchQuery.trim() !== '') {
+                    const q = searchQuery.toLowerCase();
+                    const matchName = c.name.toLowerCase().includes(q);
+                    const matchWeapon = c.weapon.toLowerCase().includes(q);
+                    if (!matchName && !matchWeapon) return false;
+                }
+                return true;
             });
 
             if (filtered.length === 0) {
                 container.innerHTML = `
-                    <div class="bg-sf-card border border-sf-border rounded-2xl p-12 text-center space-y-3">
-                        <i class="ph ph-Mask-sad text-4xl text-slate-500"></i>
-                        <h3 class="text-lg font-bold text-white">No Heroes Match Your Filter</h3>
-                        <p class="text-sm text-slate-400">Try resetting your search query or switching faction/rarity filters.</p>
-                        <button onclick="resetFilters()" class="px-4 py-2 rounded-xl bg-amber-500 text-slate-950 font-semibold text-xs">
-                            Show All 31 Characters
+                    <div class="rounded-2xl bg-sf-card border border-sf-border p-12 text-center space-y-3">
+                        <i class="ph ph-magnifying-glass text-4xl text-slate-500"></i>
+                        <h3 class="text-lg font-bold text-white">No Shadow Fight 4 heroes match your filter</h3>
+                        <p class="text-sm text-slate-400">Try clearing your search query or switching faction/rarity filters.</p>
+                        <button onclick="resetFilters()" class="mt-2 px-4 py-2 rounded-xl bg-amber-500 text-slate-950 font-semibold text-sm">
+                            Reset Filters
                         </button>
                     </div>
                 `;
                 return;
             }
 
-            // If Sort Mode is Wiki Order and not sorted by votes/alphabetical, group by Faction
-            if (activeSort === 'wiki') {
-                const factionsOrder = ['Legion', 'Dynasty', 'Heralds'];
-                const factionMeta = {
-                    Legion: {
-                        quote: '“A powerful faction of warriors who respect strength and honor. The society of the Legion is based on hierarchy and military discipline.”',
-                        color: 'text-red-400',
-                        border: 'border-red-500/30',
-                        bg: 'from-red-950/30 to-transparent',
-                        icon: 'ph-shield-chevron'
-                    },
-                    Dynasty: {
-                        quote: '“Citizens of the Dynastian Empire are agile and smart. Their ability to avoid direct conflict bought them wealth and diplomatic advantages.”',
-                        color: 'text-emerald-400',
-                        border: 'border-emerald-500/30',
-                        bg: 'from-emerald-950/30 to-transparent',
-                        icon: 'ph-flower-lotus'
-                    },
-                    Heralds: {
-                        quote: '“People who study secrets of shadow energy. These scientists are well-known for their precision in fight.”',
-                        color: 'text-purple-400',
-                        border: 'border-purple-500/30',
-                        bg: 'from-purple-950/30 to-transparent',
-                        icon: 'ph-Codesandbox-logo'
+            if (sortMode !== 'wiki') {
+                const sorted = [...filtered].sort((a, b) => {
+                    if (sortMode === 'votes-desc') {
+                        return (votes[b.id] || 0) - (votes[a.id] || 0) || a.wikiOrder - b.wikiOrder;
                     }
-                };
-
-                let sectionsHtml = '';
-
-                factionsOrder.forEach(factionName => {
-                    const factionChars = filtered.filter(c => c.faction === factionName);
-                    if (factionChars.length === 0) return;
-
-                    const meta = factionMeta[factionName];
-
-                    sectionsHtml += `
-                        <section class="space-y-4">
-                            <!-- Faction Banner matching Wiki Screenshot -->
-                            <div class="rounded-2xl bg-gradient-to-r ${meta.bg} border ${meta.border} p-4 sm:p-5">
-                                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                                    <div class="flex items-center gap-2.5">
-                                        <i class="ph-fill ${meta.icon} text-2xl ${meta.color}"></i>
-                                        <h2 class="font-display font-bold text-xl tracking-wider uppercase ${meta.color}">
-                                            ${factionName} Faction
-                                        </h2>
-                                        <span class="text-xs px-2.5 py-0.5 rounded-full bg-black/40 text-slate-300 font-semibold">
-                                            ${factionChars.length} Characters
-                                        </span>
-                                    </div>
-                                </div>
-                                <p class="text-xs sm:text-sm italic text-slate-300/90 mt-2">
-                                    ${meta.quote}
-                                </p>
-                            </div>
-
-                            <!-- Cards Grid -->
-                            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                                ${factionChars.map(char => renderCharacterCard(char, topSixIds, maxVoteCount)).join('')}
-                            </div>
-                        </section>
-                    `;
+                    if (sortMode === 'name-asc') {
+                        return a.name.localeCompare(b.name);
+                    }
+                    return a.wikiOrder - b.wikiOrder;
                 });
-
-                container.innerHTML = sectionsHtml;
-            } else {
-                // Flat sorted grid (Votes Desc or Alphabetical)
-                if (activeSort === 'votes-desc') {
-                    filtered.sort((a, b) => (votes[b.id] || 0) - (votes[a.id] || 0) || a.wikiOrder - b.wikiOrder);
-                } else if (activeSort === 'name-asc') {
-                    filtered.sort((a, b) => a.name.localeCompare(b.name));
-                }
 
                 container.innerHTML = `
                     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                        ${filtered.map(char => renderCharacterCard(char, topSixIds, maxVoteCount)).join('')}
+                        ${sorted.map(hero => buildCharacterCardHTML(hero, totalVotes, topSixIds.has(hero.id), rankMap[hero.id])).join('')}
                     </div>
                 `;
+                return;
             }
+
+            const factionsToDisplay = activeFaction === 'ALL' ? ['Legion', 'Dynasty', 'Heralds'] : [activeFaction];
+            let sectionsHTML = '';
+
+            factionsToDisplay.forEach(factionName => {
+                const factionHeroes = filtered.filter(c => c.faction === factionName);
+                if (factionHeroes.length === 0) return;
+
+                const fMeta = FACTION_META[factionName];
+                sectionsHTML += `
+                    <section class="space-y-4">
+                        <div class="rounded-2xl bg-gradient-to-r ${fMeta.gradient} border ${fMeta.border} p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                            <div class="flex items-start sm:items-center gap-3.5">
+                                <div class="w-11 h-11 rounded-xl ${fMeta.bg} border ${fMeta.border} flex items-center justify-center flex-shrink-0">
+                                    <i class="ph-fill ${fMeta.icon} text-2xl ${fMeta.color}"></i>
+                                </div>
+                                <div>
+                                    <div class="flex items-center gap-2.5">
+                                        <h2 class="font-display font-bold text-xl uppercase tracking-wider text-white">${factionName}</h2>
+                                        <span class="px-2.5 py-0.5 rounded-full text-xs font-bold ${fMeta.bg} ${fMeta.color} border ${fMeta.border}">
+                                            ${factionHeroes.length} Heroes
+                                        </span>
+                                    </div>
+                                    <p class="text-xs text-slate-400 mt-0.5 italic">"${fMeta.quote}"</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                            ${factionHeroes.map(hero => buildCharacterCardHTML(hero, totalVotes, topSixIds.has(hero.id), rankMap[hero.id])).join('')}
+                        </div>
+                    </section>
+                `;
+            });
+
+            container.innerHTML = sectionsHTML;
         }
 
-        // Single Character Card HTML
-        function renderCharacterCard(hero, topSixIds, maxVoteCount) {
+        // Individual Character Card Builder
+        function buildCharacterCardHTML(hero, totalVotes, isInTop6, slotRank) {
             const count = votes[hero.id] || 0;
-            const isTopSix = topSixIds.has(hero.id);
-            const rankIndex = isTopSix ? getTopSixRanked().findIndex(c => c.id === hero.id) + 1 : null;
-            const progressPct = count > 0 ? Math.max(8, Math.round((count / maxVoteCount) * 100)) : 0;
-
-            const rarityStyles = {
-                Common: { badge: 'bg-slate-500/20 text-slate-300 border-slate-500/40', bar: 'bg-slate-400' },
-                Rare: { badge: 'bg-sky-500/20 text-sky-300 border-sky-500/40', bar: 'bg-sky-400' },
-                Epic: { badge: 'bg-purple-500/20 text-purple-300 border-purple-500/40', bar: 'bg-purple-400' },
-                Legendary: { badge: 'bg-amber-500/20 text-amber-300 border-amber-500/40', bar: 'bg-amber-400' }
-            };
-
-            const rStyle = rarityStyles[hero.rarity];
+            const pct = totalVotes > 0 ? Math.round((count / totalVotes) * 100) : 0;
+            const rMeta = RARITY_META[hero.rarity];
+            const fMeta = FACTION_META[hero.faction];
 
             return `
-                <div class="group relative rounded-2xl bg-sf-card border ${isTopSix ? 'border-amber-500/80 ring-1 ring-amber-500/30' : 'border-sf-border hover:border-slate-700'} p-4 flex flex-col justify-between transition-all duration-200 hover:-translate-y-0.5 shadow-lg">
-                    
-                    ${isTopSix ? `
-                        <div class="absolute -top-2.5 right-3 px-2.5 py-0.5 rounded-full bg-amber-500 text-slate-950 font-extrabold text-[11px] tracking-wide shadow-md flex items-center gap-1">
-                            <i class="ph-fill ph-crown-simple"></i>
-                            <span>TOP #${rankIndex} SELECTED</span>
+                <div class="relative rounded-2xl bg-sf-card border ${isInTop6 ? 'border-amber-500/70 ring-1 ring-amber-500/30' : 'border-sf-border hover:border-slate-600'} p-4 flex flex-col justify-between transition-all duration-200 rarity-glow-${hero.rarity}">
+                    ${isInTop6 ? `
+                        <div class="absolute -top-2.5 right-3 px-2.5 py-0.5 rounded-full bg-amber-500 text-slate-950 font-extrabold text-[10px] tracking-wider shadow-md flex items-center gap-1">
+                            <i class="ph-fill ph-crown"></i>
+                            <span>TOP 6 • SLOT #${slotRank}</span>
                         </div>
                     ` : ''}
 
-                    <!-- Top Content -->
-                    <div class="flex items-start gap-3.5">
-                        ${createHeroAvatarSVG(hero)}
-
-                        <div class="flex-1 min-w-0">
-                            <div class="flex items-center gap-1.5 flex-wrap">
-                                <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded border ${rStyle.badge}">
-                                    ${hero.rarity}
-                                </span>
-                                <span class="text-[11px] text-slate-400 font-medium">${hero.faction}</span>
-                            </div>
-
-                            <h3 class="font-bold text-base text-white mt-1.5 truncate group-hover:text-amber-400 transition-colors">
-                                ${hero.name}
-                            </h3>
-                            <p class="text-xs text-slate-400 truncate mt-0.5" title="${hero.weapon}">
-                                ${hero.weapon}
-                            </p>
-                        </div>
-                    </div>
-
-                    <!-- Progress Bar & Vote Controls -->
-                    <div class="mt-4 pt-3 border-t border-slate-800/80 space-y-2.5">
-                        <div class="flex items-center justify-between text-xs">
-                            <span class="text-slate-400 font-medium">Poll Votes</span>
-                            <span class="font-extrabold text-sm ${count > 0 ? 'text-amber-400' : 'text-slate-500'}">
-                                ${count.toLocaleString()} ${count === 1 ? 'vote' : 'votes'}
+                    <div>
+                        <div class="flex items-start justify-between gap-2 mb-3">
+                            <span class="px-2.5 py-0.5 rounded-lg border text-[11px] font-semibold ${rMeta.badge}">
+                                ${hero.rarity}
+                            </span>
+                            <span class="text-xs font-medium ${fMeta.color} flex items-center gap-1">
+                                <i class="ph-fill ${fMeta.icon}"></i>
+                                ${hero.faction}
                             </span>
                         </div>
 
-                        <!-- Visual Bar -->
-                        <div class="w-full h-1.5 bg-slate-900 rounded-full overflow-hidden">
-                            <div class="h-full ${rStyle.bar} transition-all duration-300 rounded-full" style="width: ${progressPct}%"></div>
+                        <div class="flex items-center gap-3.5 my-2">
+                            <div class="w-14 h-14 rounded-2xl bg-sf-bg border border-slate-800 flex items-center justify-center text-3xl flex-shrink-0 shadow-inner">
+                                ${hero.icon}
+                            </div>
+                            <div class="min-w-0">
+                                <h3 class="font-bold text-base text-white truncate" title="${hero.name}">
+                                    ${hero.name}
+                                </h3>
+                                <p class="text-xs text-slate-400 truncate mt-0.5" title="${hero.weapon}">
+                                    ${hero.weapon}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-4 pt-3 border-t border-slate-800/80 space-y-3">
+                        <div>
+                            <div class="flex items-center justify-between text-xs mb-1.5">
+                                <span class="font-bold text-white">${count} <span class="font-normal text-slate-400">vote${count === 1 ? '' : 's'}</span></span>
+                                <span class="font-semibold ${isInTop6 ? 'text-amber-400' : 'text-slate-400'}">${pct}%</span>
+                            </div>
+                            <div class="w-full h-2 rounded-full bg-sf-bg overflow-hidden">
+                                <div class="h-full rounded-full ${isInTop6 ? 'bg-amber-400' : rMeta.bar} transition-all duration-300" style="width: ${pct}%"></div>
+                            </div>
                         </div>
 
-                        <!-- Interactive Multi-Vote Buttons -->
-                        <div class="flex items-center gap-1.5 pt-1">
+                        <div class="flex items-center gap-2">
                             <button 
-                                onclick="addVote('${hero.id}', -1)" 
+                                onclick="changeVote('${hero.id}', -1)" 
                                 ${count === 0 ? 'disabled' : ''}
-                                class="w-9 h-9 rounded-xl border border-slate-700 bg-slate-800/70 hover:bg-slate-700 disabled:opacity-30 disabled:pointer-events-none text-slate-200 flex items-center justify-center transition"
-                                title="Remove 1 Vote">
-                                <i class="ph-bold ph-minus text-xs"></i>
+                                class="w-9 h-9 rounded-xl bg-slate-800/90 hover:bg-slate-700 disabled:opacity-35 disabled:pointer-events-none text-slate-200 flex items-center justify-center transition-colors border border-slate-700"
+                                title="Remove 1 vote"
+                            >
+                                <i class="ph-bold ph-minus"></i>
                             </button>
 
                             <button 
-                                onclick="addVote('${hero.id}', 1)" 
-                                class="flex-1 h-9 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 active:scale-[0.98] text-slate-950 font-extrabold text-xs sm:text-sm flex items-center justify-center gap-1.5 shadow-md shadow-amber-500/10 transition">
-                                <i class="ph-fill ph-thumbs-up"></i>
-                                <span>+1 Vote</span>
+                                onclick="changeVote('${hero.id}', 1)" 
+                                class="flex-1 h-9 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 active:scale-[0.98] text-slate-950 font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 shadow-md shadow-amber-500/15 transition-all"
+                            >
+                                <i class="ph-bold ph-plus"></i>
+                                <span>Vote (+1)</span>
                             </button>
 
                             <button 
-                                onclick="addVote('${hero.id}', 5)" 
-                                class="px-2.5 h-9 rounded-xl border border-amber-500/40 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 font-bold text-xs flex items-center justify-center transition"
-                                title="Boost +5 Votes">
+                                onclick="changeVote('${hero.id}', 5)" 
+                                class="px-2.5 h-9 rounded-xl bg-slate-800 hover:bg-slate-700 active:scale-[0.98] text-amber-400 font-bold text-xs border border-slate-700 transition-all"
+                                title="Add 5 votes at once"
+                            >
                                 +5
                             </button>
                         </div>
@@ -1030,206 +991,61 @@
             `;
         }
 
-        // Clear a single character's votes
-        function clearCharacterVotes(charId) {
-            const hero = INITIAL_CHARACTERS.find(c => c.id === charId);
-            votes[charId] = 0;
-            tiebreakerWinners = {};
-            saveState();
-            renderAll();
-            if (hero) {
-                showToast(`Removed ${hero.name} from Top 6 slots.`);
-            }
-        }
+        // ================= END VOTE, TIEBREAKER & BIG SHOWCASE LOGIC =================
 
-        // Handle "End Vote" Button Click
         function handleEndVote() {
-            const votedCount = INITIAL_CHARACTERS.filter(c => (votes[c.id] || 0) > 0).length;
-            if (votedCount === 0) {
-                showToast('Cast some votes first (or click Simulate Votes) before ending the poll!');
+            const totalVotes = getTotalVotes();
+            if (totalVotes === 0) {
+                showToast('Cast at least one vote before ending the poll!');
                 return;
             }
 
-            const tieInfo = analyzeBoundaryTie();
-            if (tieInfo.hasTie && !tieInfo.isAlreadyResolved) {
-                openTiebreakerModal(tieInfo);
+            const tieStatus = detectCutoffTie();
+            if (tieStatus.hasTie) {
+                openTiebreakerModal(tieStatus);
             } else {
                 openFinalShowcaseModal();
             }
         }
 
-        // Open Tiebreaker Modal when multiple low-voted characters tie for remaining slots
-        function openTiebreakerModal(tieInfo) {
+        function openTiebreakerModal(tieStatus) {
             const initialTbVotes = {};
-            tieInfo.tiedCandidates.forEach(c => { initialTbVotes[c.id] = 0; });
+            tieStatus.tiedCandidates.forEach(h => {
+                initialTbVotes[h.id] = 0;
+            });
 
             currentTieSession = {
-                lockedHeroes: tieInfo.lockedHeroes,
-                tiedCandidates: tieInfo.tiedCandidates,
-                slotsRemaining: tieInfo.slotsRemaining,
-                tiedVoteCount: tieInfo.tiedVoteCount,
+                lockedHeroes: tieStatus.lockedHeroes,
+                tiedCandidates: tieStatus.tiedCandidates,
+                slotsRemaining: tieStatus.slotsRemaining,
+                tieVoteCount: tieStatus.tieVoteCount,
                 tbVotes: initialTbVotes
             };
 
-            const descEl = document.getElementById('tiebreaker-description');
-            descEl.innerHTML = `<strong>${tieInfo.lockedHeroes.length} of 6 slots</strong> are safely locked with higher votes. However, <strong class="text-amber-400">${tieInfo.tiedCandidates.length} characters</strong> are tied with <strong class="text-amber-400">${tieInfo.tiedVoteCount} vote${tieInfo.tiedVoteCount > 1 ? 's' : ''}</strong> each for the remaining <strong class="text-emerald-400">${tieInfo.slotsRemaining} slot${tieInfo.slotsRemaining > 1 ? 's' : ''}</strong>!`;
-
-            document.getElementById('tiebreaker-needed-inline').textContent = tieInfo.slotsRemaining;
-
             const lockedSection = document.getElementById('tiebreaker-locked-section');
             const lockedList = document.getElementById('tiebreaker-locked-list');
-            if (tieInfo.lockedHeroes.length > 0) {
+            if (tieStatus.lockedHeroes.length > 0) {
                 lockedSection.classList.remove('hidden');
-                lockedList.innerHTML = tieInfo.lockedHeroes.map((h, i) => `
-                    <div class="px-3 py-1.5 rounded-xl bg-slate-800/90 border border-slate-700 flex items-center gap-2 text-xs">
-                        <span class="font-extrabold text-amber-400">#${i + 1}</span>
-                        <span>${h.icon}</span>
-                        <span class="font-bold text-white">${h.name}</span>
-                        <span class="text-slate-400">(${votes[h.id]}v)</span>
-                    </div>
+                lockedList.innerHTML = tieStatus.lockedHeroes.map((h, i) => `
+                    <span class="px-3 py-1 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs font-semibold flex items-center gap-1.5">
+                        <span>#${i + 1} ${h.icon} ${h.name}</span>
+                        <span class="text-emerald-400/80">(${h.voteCount}v)</span>
+                    </span>
                 `).join('');
             } else {
                 lockedSection.classList.add('hidden');
             }
 
-            document.getElementById('tiebreaker-Instruction-label').textContent =
-                `Cast multiple tiebreaker votes to decide which ${tieInfo.slotsRemaining} character${tieInfo.slotsRemaining > 1 ? 's' : ''} advance:`;
+            document.getElementById('tiebreaker-description').innerHTML = `
+                <strong>${tieStatus.tiedCandidates.length} heroes</strong> are tied with <strong>${tieStatus.tieVoteCount} vote${tieStatus.tieVoteCount === 1 ? '' : 's'}</strong> each, competing for the remaining <strong>${tieStatus.slotsRemaining} slot${tieStatus.slotsRemaining === 1 ? '' : 's'}</strong>!
+            `;
+            document.getElementById('tiebreaker-needed-inline').textContent = tieStatus.slotsRemaining;
+            document.getElementById('tiebreaker-counter').textContent = `${tieStatus.slotsRemaining} Slot${tieStatus.slotsRemaining === 1 ? '' : 's'}`;
 
             renderTiebreakerCandidates();
-
             const modal = document.getElementById('tiebreaker-modal');
             modal.classList.remove('hidden');
             modal.classList.add('flex');
-        }
-
-        function renderTiebreakerCandidates() {
-            const grid = document.getElementById('tiebreaker-candidates-grid');
-            const { tiedCandidates, slotsRemaining, tbVotes, tiedVoteCount } = currentTieSession;
-
-            // Sort contenders by tiebreaker votes descending
-            const sorted = [...tiedCandidates].sort((a, b) => (tbVotes[b.id] || 0) - (tbVotes[a.id] || 0) || a.wikiOrder - b.wikiOrder);
-
-            // Check if the top `slotsRemaining` contenders clearly beat the next contender
-            const nthScore = tbVotes[sorted[slotsRemaining - 1].id] || 0;
-            const nextScore = sorted[slotsRemaining] ? (tbVotes[sorted[slotsRemaining].id] || 0) : -1;
-            const isResolved = nthScore > 0 && nthScore > nextScore;
-
-            const winningIds = new Set();
-            if (nthScore > 0) {
-                sorted.forEach(c => {
-                    if ((tbVotes[c.id] || 0) >= nthScore && (tbVotes[c.id] || 0) > nextScore) {
-                        winningIds.add(c.id);
-                    }
-                });
-            }
-
-            document.getElementById('tiebreaker-counter').textContent = `${winningIds.size} / ${slotsRemaining} Advancing`;
-
-            const confirmBtn = document.getElementById('confirm-tiebreaker-btn');
-            const statusHint = document.getElementById('tiebreaker-status-hint');
-            confirmBtn.disabled = !isResolved;
-
-            if (isResolved) {
-                statusHint.innerHTML = `<span class="text-emerald-400 font-semibold">Tie resolved! Top ${slotsRemaining} contender${slotsRemaining > 1 ? 's' : ''} ready to lock in.</span>`;
-            } else if (nthScore > 0 && nthScore === nextScore) {
-                statusHint.innerHTML = `<span class="text-amber-400 font-semibold">Still tied at ${nthScore} tiebreaker vote${nthScore > 1 ? 's' : ''}! Add more votes to break the cutoff tie.</span>`;
-            } else {
-                statusHint.textContent = `Vote for your favorites (+1 or +5) so the top ${slotsRemaining} hero${slotsRemaining > 1 ? 'es' : ''} lead.`;
-            }
-
-            grid.innerHTML = sorted.map(hero => {
-                const count = tbVotes[hero.id] || 0;
-                const isAdvancing = winningIds.has(hero.id);
-                const isBoundaryTied = nthScore > 0 && count === nthScore && nthScore === nextScore;
-
-                return `
-                    <div class="rounded-2xl p-4 border-2 transition-all flex flex-col justify-between gap-3 ${
-                        isAdvancing
-                            ? 'bg-emerald-500/10 border-emerald-400 shadow-lg shadow-emerald-500/10'
-                            : isBoundaryTied
-                                ? 'bg-amber-500/10 border-amber-400/80'
-                                : 'bg-sf-bg/90 border-slate-800'
-                    }">
-                        <div class="flex items-center gap-3.5">
-                            ${createHeroAvatarSVG(hero, "w-14 h-14", "text-2xl")}
-                            <div class="flex-1 min-w-0">
-                                <div class="flex items-center justify-between gap-1 flex-wrap">
-                                    <span class="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-slate-800 text-slate-300">
-                                        Base: ${tiedVoteCount}v
-                                    </span>
-                                    ${isAdvancing ? `
-                                        <span class="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded bg-emerald-500 text-slate-950">
-                                            Advancing
-                                        </span>
-                                    ` : isBoundaryTied ? `
-                                        <span class="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded bg-amber-500 text-slate-950">
-                                            Cutoff Tied
-                                        </span>
-                                    ` : ''}
-                                </div>
-                                <h4 class="font-bold text-base text-white truncate mt-1">${hero.name}</h4>
-                                <p class="text-xs text-slate-400 truncate">${hero.faction} • ${hero.rarity}</p>
-                            </div>
-                        </div>
-
-                        <!-- Multi-vote controls inside Tiebreaker -->
-                        <div class="pt-2.5 border-t border-slate-800/80 flex items-center justify-between gap-2">
-                            <div>
-                                <span class="block text-[10px] uppercase tracking-wider text-slate-400">TB Votes</span>
-                                <span class="font-extrabold text-base ${count > 0 ? 'text-amber-400' : 'text-slate-500'}">${count}</span>
-                            </div>
-                            <div class="flex items-center gap-1.5">
-                                <button onclick="addTiebreakerVote('${hero.id}', -1)" ${count === 0 ? 'disabled' : ''} class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-30 disabled:pointer-events-none text-slate-200 flex items-center justify-center font-bold text-xs transition">
-                                    -1
-                                </button>
-                                <button onclick="addTiebreakerVote('${hero.id}', 1)" class="px-3 h-8 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-xs flex items-center gap-1 transition shadow">
-                                    +1 Vote
-                                </button>
-                                <button onclick="addTiebreakerVote('${hero.id}', 5)" class="px-2 h-8 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-300 font-bold text-xs transition">
-                                    +5
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            }).join('');
-        }
-
-        function addTiebreakerVote(charId, amount) {
-            const current = currentTieSession.tbVotes[charId] || 0;
-            currentTieSession.tbVotes[charId] = Math.max(0, current + amount);
-            renderTiebreakerCandidates();
-        }
-
-        function autoPickTiebreaker() {
-            const { tiedCandidates, slotsRemaining } = currentTieSession;
-            const shuffled = [...tiedCandidates].sort(() => Math.random() - 0.5);
-            shuffled.forEach((c, idx) => {
-                // Give random multi-votes with clear top winners
-                currentTieSession.tbVotes[c.id] = idx < slotsRemaining
-                    ? Math.floor(Math.random() * 4) + 5
-                    : Math.floor(Math.random() * 4) + 1;
-            });
-            renderTiebreakerCandidates();
-            showToast(`Random tiebreaker votes cast!`);
-        }
-
-        function confirmTiebreakerWinners() {
-            const { tiedCandidates, slotsRemaining, tbVotes } = currentTieSession;
-            const sorted = [...tiedCandidates].sort((a, b) => (tbVotes[b.id] || 0) - (tbVotes[a.id] || 0));
-            const winners = sorted.slice(0, slotsRemaining);
-
-            // Keep main poll votes completely unchanged; only assign slot priority to the tiebreaker winners
-            tiebreakerWinners = {};
-            let priority = 100;
-            winners.forEach(hero => {
-                tiebreakerWinners[hero.id] = priority--;
-            });
-
-            saveState();
-            closeTiebreakerModal();
-            renderAll();
-            openFinalShowcaseModal();
         }
 
         function closeTiebreakerModal() {
@@ -1238,78 +1054,186 @@
             modal.classList.remove('flex');
         }
 
-        // Open Final 6 Big Showcase Window
+        function changeTiebreakerVote(heroId, delta) {
+            const current = currentTieSession.tbVotes[heroId] || 0;
+            currentTieSession.tbVotes[heroId] = Math.max(0, current + delta);
+            renderTiebreakerCandidates();
+        }
+
+        function renderTiebreakerCandidates() {
+            const grid = document.getElementById('tiebreaker-candidates-grid');
+            const { tiedCandidates, slotsRemaining, tbVotes } = currentTieSession;
+
+            const sortedContenders = [...tiedCandidates].sort((a, b) => {
+                const diff = (tbVotes[b.id] || 0) - (tbVotes[a.id] || 0);
+                return diff !== 0 ? diff : a.wikiOrder - b.wikiOrder;
+            });
+
+            const cutoffTbScore = tbVotes[sortedContenders[slotsRemaining - 1].id] || 0;
+            const nextOutsideScore = sortedContenders[slotsRemaining] ? (tbVotes[sortedContenders[slotsRemaining].id] || 0) : -1;
+            const isTieResolved = cutoffTbScore > nextOutsideScore;
+
+            grid.innerHTML = sortedContenders.map((hero, idx) => {
+                const tbScore = tbVotes[hero.id] || 0;
+                const isAdvancing = idx < slotsRemaining && tbScore > nextOutsideScore;
+                const isCutoffTied = tbScore === cutoffTbScore && !isTieResolved;
+                const fMeta = FACTION_META[hero.faction];
+
+                return `
+                    <div class="rounded-2xl p-4 border-2 transition-all flex flex-col justify-between gap-3 ${isAdvancing ? 'bg-amber-500/15 border-amber-400 shadow-lg shadow-amber-500/15' : isCutoffTied ? 'bg-slate-900/90 border-rose-500/50' : 'bg-sf-bg/90 border-slate-800'}">
+                        <div class="flex items-center justify-between gap-2">
+                            <div class="flex items-center gap-3 min-w-0">
+                                <div class="w-12 h-12 rounded-xl bg-sf-card border border-slate-700 flex items-center justify-center text-2xl flex-shrink-0">
+                                    ${hero.icon}
+                                </div>
+                                <div class="min-w-0">
+                                    <h4 class="font-bold text-sm text-white truncate">${hero.name}</h4>
+                                    <span class="text-[11px] font-semibold ${fMeta.color}">${hero.faction} • ${hero.rarity}</span>
+                                    <span class="block text-[11px] text-slate-400">Main Poll: ${hero.voteCount}v (Unchanged)</span>
+                                </div>
+                            </div>
+                            <span class="px-2 py-0.5 rounded-md text-[10px] font-extrabold uppercase tracking-wider ${isAdvancing ? 'bg-emerald-500 text-slate-950' : isCutoffTied ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40' : 'bg-slate-800 text-slate-400'}">
+                                ${isAdvancing ? 'Advancing' : isCutoffTied ? 'Cutoff Tied' : 'Eliminated'}
+                            </span>
+                        </div>
+
+                        <div class="pt-2.5 border-t border-slate-800/80 flex items-center justify-between gap-2">
+                            <div>
+                                <span class="text-[10px] uppercase tracking-wider text-slate-400 block">Tiebreaker Votes</span>
+                                <span class="font-extrabold text-base ${isAdvancing ? 'text-amber-400' : 'text-white'}">${tbScore}</span>
+                            </div>
+                            <div class="flex items-center gap-1.5">
+                                <button onclick="changeTiebreakerVote('${hero.id}', -1)" ${tbScore === 0 ? 'disabled' : ''} class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 disabled:opacity-35 text-slate-200 flex items-center justify-center border border-slate-700">
+                                    <i class="ph-bold ph-minus text-xs"></i>
+                                </button>
+                                <button onclick="changeTiebreakerVote('${hero.id}', 1)" class="px-2.5 h-8 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-xs flex items-center gap-1 transition">
+                                    <i class="ph-bold ph-plus text-xs"></i>
+                                    <span>Vote</span>
+                                </button>
+                                <button onclick="changeTiebreakerVote('${hero.id}', 5)" class="px-2 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-400 font-bold text-xs border border-slate-700">
+                                    +5
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            const confirmBtn = document.getElementById('confirm-tiebreaker-btn');
+            const hint = document.getElementById('tiebreaker-status-hint');
+
+            if (isTieResolved) {
+                confirmBtn.disabled = false;
+                hint.innerHTML = `<span class="text-emerald-400 font-semibold">Tie resolved! Top ${slotsRemaining} tiebreaker winner(s) will occupy the remaining slots (main poll scores unchanged).</span>`;
+            } else {
+                confirmBtn.disabled = true;
+                hint.innerHTML = `<span class="text-amber-300">Cast more tiebreaker votes so the top <strong>${slotsRemaining}</strong> contender(s) have strictly more tiebreaker votes than the rest.</span>`;
+            }
+        }
+
+        function autoPickTiebreaker() {
+            const { tiedCandidates, slotsRemaining } = currentTieSession;
+            const shuffled = [...tiedCandidates].sort(() => Math.random() - 0.5);
+            tiedCandidates.forEach(c => { currentTieSession.tbVotes[c.id] = 0; });
+            shuffled.slice(0, slotsRemaining).forEach((c, idx) => {
+                currentTieSession.tbVotes[c.id] = 3 - (idx % 2);
+            });
+            renderTiebreakerCandidates();
+            showToast(`Random tiebreaker boost applied!`);
+        }
+
+        function confirmTiebreakerWinners() {
+            const { tiedCandidates, slotsRemaining, tbVotes } = currentTieSession;
+            const sorted = [...tiedCandidates].sort((a, b) => (tbVotes[b.id] || 0) - (tbVotes[a.id] || 0));
+            const winners = sorted.slice(0, slotsRemaining);
+
+            // Keep main poll votes (`votes`) 100% untouched; store tiebreaker winners & separate TB scores independently
+            tiebreakerWinners = {};
+            tiebreakerVoteScores = {};
+            let priority = 100;
+            winners.forEach(hero => {
+                tiebreakerWinners[hero.id] = priority--;
+                tiebreakerVoteScores[hero.id] = tbVotes[hero.id] || 0;
+            });
+
+            saveState();
+            closeTiebreakerModal();
+            renderAll();
+            openFinalShowcaseModal();
+        }
+
         function openFinalShowcaseModal() {
-            const topSix = getTopSixRanked();
-            const totalVotes = Object.values(votes).reduce((acc, v) => acc + v, 0);
-            document.getElementById('final-total-votes-badge').textContent = `• ${totalVotes.toLocaleString()} Total Poll Votes`;
-
+            const leaders = getTopSixLeaders();
+            const totalVotes = getTotalVotes();
             const grid = document.getElementById('final-showcase-grid');
-            const factionColors = {
-                Legion: 'from-red-950/60 to-sf-bg border-red-500/40',
-                Dynasty: 'from-emerald-950/60 to-sf-bg border-emerald-500/40',
-                Heralds: 'from-purple-950/60 to-sf-bg border-purple-500/40'
-            };
+            document.getElementById('final-total-votes-badge').textContent = `Total Poll Votes: ${totalVotes.toLocaleString()}`;
 
-            let html = '';
+            let cardsHTML = '';
             for (let i = 0; i < 6; i++) {
-                const hero = topSix[i];
+                const hero = leaders[i];
                 const rank = i + 1;
+
                 if (hero) {
-                    const heroVotes = votes[hero.id] || 0;
-                    const pct = totalVotes > 0 ? Math.round((heroVotes / totalVotes) * 100) : 0;
+                    const fMeta = FACTION_META[hero.faction];
+                    const rMeta = RARITY_META[hero.rarity];
+                    const pct = totalVotes > 0 ? Math.round((hero.voteCount / totalVotes) * 100) : 0;
                     const wonTB = (tiebreakerWinners[hero.id] || 0) > 0;
 
-                    html += `
-                        <div class="slot-card-enter relative rounded-3xl bg-gradient-to-br ${factionColors[hero.faction]} border-2 p-6 flex flex-col justify-between shadow-2xl rarity-glow-${hero.rarity}">
+                    cardsHTML += `
+                        <div class="slot-card-enter relative rounded-2xl bg-gradient-to-br ${fMeta.gradient} border-2 ${rank === 1 ? 'border-amber-400 shadow-[0_0_25px_-5px_rgba(251,191,36,0.4)]' : rMeta.ring} p-5 flex flex-col justify-between gap-4">
                             <div class="flex items-center justify-between gap-2">
                                 <span class="px-3.5 py-1 rounded-xl bg-amber-500 text-slate-950 font-display font-extrabold text-sm tracking-wider shadow">
                                     RANK #${rank} CHAMPION
                                 </span>
                                 ${wonTB ? `
                                     <span class="px-2.5 py-1 rounded-lg bg-emerald-500/20 border border-emerald-400/50 text-emerald-300 text-xs font-bold flex items-center gap-1">
-                                        <i class="ph-fill ph-lightning"></i> Tiebreaker Winner
+                                        <i class="ph-fill ph-lightning"></i> TB Winner (${tiebreakerVoteScores[hero.id] || 0} TBv)
                                     </span>
                                 ` : `
                                     <span class="text-xs font-bold uppercase tracking-wider text-slate-300 px-2.5 py-1 rounded-lg bg-black/40">
-                                        ${hero.rarity}
+                                        ${pct}% Share
                                     </span>
                                 `}
                             </div>
 
-                            <div class="flex items-center gap-5 my-6">
-                                ${createHeroAvatarSVG(hero, "w-24 h-24 sm:w-28 sm:h-28", "text-4xl sm:text-5xl")}
-                                <div class="space-y-1.5 min-w-0">
-                                    <span class="text-xs font-bold uppercase tracking-widest text-amber-400 block">${hero.faction} Faction</span>
-                                    <h3 class="font-display font-extrabold text-xl sm:text-2xl text-white truncate">${hero.name}</h3>
-                                    <p class="text-xs sm:text-sm text-slate-300">${hero.weapon}</p>
+                            <div class="flex items-center gap-4 my-1">
+                                <div class="w-20 h-20 rounded-2xl bg-sf-bg/95 border-2 border-slate-700/90 flex items-center justify-center text-4xl shadow-xl flex-shrink-0">
+                                    ${hero.icon}
+                                </div>
+                                <div class="min-w-0 space-y-1">
+                                    <h3 class="font-display font-extrabold text-xl text-white leading-tight truncate">
+                                        ${hero.name}
+                                    </h3>
+                                    <div class="flex flex-wrap items-center gap-1.5">
+                                        <span class="px-2 py-0.5 rounded-md text-xs font-bold ${fMeta.bg} ${fMeta.color} border ${fMeta.border}">
+                                            ${hero.faction}
+                                        </span>
+                                        <span class="px-2 py-0.5 rounded-md text-xs font-bold ${rMeta.badge}">
+                                            ${hero.rarity}
+                                        </span>
+                                    </div>
+                                    <p class="text-xs text-slate-300 truncate">${hero.weapon}</p>
                                 </div>
                             </div>
 
-                            <div class="pt-4 border-t border-white/10 flex items-center justify-between">
-                                <div>
-                                    <span class="text-xs text-slate-400 block">Final Poll Score</span>
-                                    <span class="text-xl font-extrabold text-amber-400">${heroVotes.toLocaleString()} Votes</span>
-                                </div>
-                                <div class="text-right">
-                                    <span class="text-xs text-slate-400 block">Vote Share</span>
-                                    <span class="text-lg font-bold text-white">${pct}%</span>
-                                </div>
+                            <div class="pt-3 border-t border-slate-800/90 flex items-center justify-between">
+                                <span class="text-xs text-slate-400 uppercase tracking-wider font-semibold">Main Poll Votes</span>
+                                <span class="font-extrabold text-xl text-amber-400">${hero.voteCount.toLocaleString()}</span>
                             </div>
                         </div>
                     `;
                 } else {
-                    html += `
-                        <div class="rounded-3xl bg-sf-bg/50 border-2 border-dashed border-slate-800 p-6 flex flex-col items-center justify-center text-center min-h-[240px]">
-                            <span class="font-display font-bold text-2xl text-slate-600 mb-2">SLOT #${rank}</span>
-                            <p class="text-sm text-slate-500">Unfilled Slot (No Votes Cast)</p>
+                    cardsHTML += `
+                        <div class="rounded-2xl border-2 border-dashed border-slate-800 bg-sf-bg/50 p-6 flex flex-col items-center justify-center text-center min-h-[210px]">
+                            <span class="px-3 py-1 rounded-lg bg-slate-800 text-slate-400 font-bold text-xs mb-2">SLOT #${rank}</span>
+                            <p class="text-sm font-bold text-slate-400">Unfilled Slot</p>
+                            <p class="text-xs text-slate-500 mt-1">No character received votes for this slot</p>
                         </div>
                     `;
                 }
             }
 
-            grid.innerHTML = html;
-
+            grid.innerHTML = cardsHTML;
             const modal = document.getElementById('final-showcase-modal');
             modal.classList.remove('hidden');
             modal.classList.add('flex');
@@ -1321,13 +1245,13 @@
             modal.classList.remove('flex');
         }
 
-        // Test helper: Sets up the exact example scenario (4 high-vote heroes + 7 heroes tied at 3 votes for the last 2 slots)
         function simulateTieScenario() {
             INITIAL_CHARACTERS.forEach(c => {
                 votes[c.id] = 0;
                 lastVotedTime[c.id] = 0;
             });
             tiebreakerWinners = {};
+            tiebreakerVoteScores = {};
 
             // Top 4 clear winners
             votes['itu'] = 12;
@@ -1336,7 +1260,7 @@
             votes['monkey_king'] = 6;
 
             // 7 characters tied at 3 votes competing for Slot #5 and Slot #6
-            const tiedIds = ['marcus', 'kibo', 'sarge', 'shang', 'widow', 'shogun', 'ironclad'];
+            const tiedIds = ['marcus', 'sarge', 'kibo', 'june', 'shang', 'ironclad', 'ling'];
             tiedIds.forEach((id, idx) => {
                 votes[id] = 3;
                 lastVotedTime[id] = Date.now() + idx;
@@ -1344,7 +1268,7 @@
 
             saveState();
             renderAll();
-            showToast('Tie Scenario Loaded: 7 heroes tied with 3 votes for the last 2 slots! Click "End Vote".');
+            showToast('Tie Scenario loaded: 4 locked + 7 heroes tied at 3 votes for 2 slots! Click "End Vote".');
         }
 
         // Filter & Sort Setters
@@ -1357,102 +1281,101 @@
             if (activeBtn) {
                 activeBtn.className = 'faction-tab active-tab px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all flex items-center gap-2 bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20';
             }
-            renderCharacterPoll();
+            renderCharacters();
         }
 
         function setRarityFilter(rarity) {
             activeRarity = rarity;
-            renderCharacterPoll();
+            renderCharacters();
         }
 
-        function setSortMode(sortMode) {
-            activeSort = sortMode;
-            renderCharacterPoll();
+        function setSortMode(mode) {
+            sortMode = mode;
+            renderCharacters();
         }
 
-        function setSearchQuery(q) {
-            searchQuery = q;
+        function setSearchQuery(query) {
+            searchQuery = query;
             const input = document.getElementById('search-input');
-            if (input.value !== q) input.value = q;
             const clearBtn = document.getElementById('clear-search-btn');
-            if (q.length > 0) {
+            if (input.value !== query) input.value = query;
+            if (query.trim().length > 0) {
                 clearBtn.classList.remove('hidden');
             } else {
                 clearBtn.classList.add('hidden');
             }
-            renderCharacterPoll();
+            renderCharacters();
         }
 
         function resetFilters() {
+            activeFaction = 'ALL';
             activeRarity = 'ALL';
+            sortMode = 'wiki';
+            searchQuery = '';
             document.getElementById('rarity-select').value = 'ALL';
-            setSearchQuery('');
+            document.getElementById('sort-select').value = 'wiki';
+            document.getElementById('search-input').value = '';
+            document.getElementById('clear-search-btn').classList.add('hidden');
             setFactionFilter('ALL');
         }
 
-        // Simulate realistic community votes across characters
+        // Simulate realistic community votes
         function simulateCrowdVotes() {
-            const weights = {
-                Legendary: 18,
-                Epic: 14,
-                Rare: 9,
-                Common: 7
-            };
-
             tiebreakerWinners = {};
+            tiebreakerVoteScores = {};
             INITIAL_CHARACTERS.forEach(c => {
-                // Give random boost to about 65% of characters
                 if (Math.random() > 0.35) {
-                    const maxAdd = weights[c.rarity] || 10;
-                    const added = Math.floor(Math.random() * maxAdd) + 1;
-                    if ((votes[c.id] || 0) === 0) {
-                        lastVotedTime[c.id] = Date.now() + Math.random() * 1000;
-                    }
-                    votes[c.id] = (votes[c.id] || 0) + added;
+                    const boost = Math.floor(Math.random() * 14) + 1;
+                    votes[c.id] = (votes[c.id] || 0) + boost;
+                    if (!lastVotedTime[c.id]) lastVotedTime[c.id] = Date.now() + Math.random() * 1000;
                 }
             });
-
             saveState();
             renderAll();
-            showToast('Simulated community poll votes! Top 6 slots updated.');
+            showToast('Simulated community poll votes across the 31 heroes!');
         }
 
-        // Reset all votes back to 0
+        // Reset all votes back to 0 (6 empty slots)
         function resetAllVotes() {
             INITIAL_CHARACTERS.forEach(c => {
                 votes[c.id] = 0;
                 lastVotedTime[c.id] = 0;
             });
             tiebreakerWinners = {};
+            tiebreakerVoteScores = {};
             saveState();
             renderAll();
-            showToast('All votes cleared! The 6 slots are now empty.');
+            showToast('All votes cleared! Top 6 slots are empty again.');
         }
 
-        // Share / Copy Top 6 summary to clipboard
+        // Copy Top 6 summary using execCommand fallback
         function copyResultsToClipboard() {
-            const topSix = getTopSixRanked();
-            if (topSix.length === 0) {
-                showToast('Vote for at least 1 character before sharing!');
-                return;
+            const leaders = getTopSixLeaders();
+            const total = getTotalVotes();
+            let text = `⚔️ Shadow Fight 4: Arena - Top 6 Poll Results (${total} Total Votes)\n`;
+            for (let i = 0; i < 6; i++) {
+                if (leaders[i]) {
+                    const tbNote = (tiebreakerWinners[leaders[i].id] || 0) > 0 ? ` [TB Winner: ${tiebreakerVoteScores[leaders[i].id] || 0} TBv]` : '';
+                    text += `#${i + 1}: ${leaders[i].name} (${leaders[i].faction} • ${leaders[i].rarity}) - ${leaders[i].voteCount} votes${tbNote}\n`;
+                } else {
+                    text += `#${i + 1}: [Empty Slot]\n`;
+                }
             }
 
-            let lines = ['⚔️ SHADOW FIGHT 4: ARENA - TOP 6 POLL ROSTER ⚔️'];
-            topSix.forEach((c, idx) => {
-                lines.push(`#${idx + 1} ${c.name} (${c.faction} • ${c.rarity}) — ${votes[c.id]} Votes`);
-            });
-
-            const textArea = document.createElement('textarea');
-            textArea.value = lines.join('\n');
-            document.body.appendChild(textArea);
-            textArea.select();
-            document.execCommand('copy');
-            document.body.removeChild(textArea);
-
-            showToast('Top 6 Roster copied to clipboard!');
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            document.body.appendChild(textarea);
+            textarea.select();
+            try {
+                document.execCommand('copy');
+                showToast('Top 6 Roster copied to clipboard!');
+            } catch (err) {
+                showToast('Could not copy automatically.');
+            }
+            document.body.removeChild(textarea);
         }
 
-        // Modal Functions
+        // Modal controls
         function openAnalysisModal() {
             const modal = document.getElementById('analysis-modal');
             modal.classList.remove('hidden');
@@ -1465,32 +1388,28 @@
             modal.classList.remove('flex');
         }
 
-        // Toast Helper
-        let toastTimer = null;
+        // Toast Notification
         function showToast(message) {
             const box = document.getElementById('toast-box');
             const text = document.getElementById('toast-text');
             text.textContent = message;
+
             box.classList.remove('opacity-0', 'translate-y-3');
             box.classList.add('opacity-100', 'translate-y-0');
 
-            if (toastTimer) clearTimeout(toastTimer);
-            toastTimer = setTimeout(() => {
-                box.classList.add('opacity-0', 'translate-y-3');
+            if (toastTimeout) clearTimeout(toastTimeout);
+            toastTimeout = setTimeout(() => {
                 box.classList.remove('opacity-100', 'translate-y-0');
-            }, 2400);
+                box.classList.add('opacity-0', 'translate-y-3');
+            }, 2600);
         }
 
         function renderAll() {
             renderTopSixSlots();
-            renderCharacterPoll();
+            renderCharacters();
         }
 
-        // Initialize on Window Load
-        window.onload = function () {
-            loadState();
-            renderAll();
-        };
+        window.addEventListener('DOMContentLoaded', initApp);
     </script>
 </body>
 </html>
