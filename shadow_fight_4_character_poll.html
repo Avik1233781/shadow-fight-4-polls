@@ -1,0 +1,1433 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shadow Fight 4: Arena - Top 6 Character Poll</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Cinzel:wght@600;700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        display: ['Cinzel', 'serif'],
+                    },
+                    colors: {
+                        sf: {
+                            bg: '#0d0f14',
+                            card: '#161922',
+                            border: '#262b38',
+                            legion: '#ef4444',
+                            dynasty: '#10b981',
+                            heralds: '#a855f7',
+                            common: '#94a3b8',
+                            rare: '#38bdf8',
+                            epic: '#c084fc',
+                            legendary: '#fbbf24'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #0d0f14;
+            background-image: 
+                radial-gradient(circle at 15% 15%, rgba(239, 68, 68, 0.08) 0%, transparent 35%),
+                radial-gradient(circle at 50% 50%, rgba(16, 185, 129, 0.06) 0%, transparent 40%),
+                radial-gradient(circle at 85% 85%, rgba(168, 85, 247, 0.08) 0%, transparent 35%);
+            background-attachment: fixed;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0d0f14;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #262b38;
+            border-radius: 9999px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #3b4254;
+        }
+
+        .rarity-glow-Common { box-shadow: 0 0 15px -3px rgba(148, 163, 184, 0.25); }
+        .rarity-glow-Rare { box-shadow: 0 0 15px -3px rgba(56, 189, 248, 0.3); }
+        .rarity-glow-Epic { box-shadow: 0 0 15px -3px rgba(192, 132, 252, 0.35); }
+        .rarity-glow-Legendary { box-shadow: 0 0 20px -2px rgba(251, 191, 36, 0.4); }
+
+        .slot-card-enter {
+            animation: popIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        @keyframes popIn {
+            0% { opacity: 0; transform: scale(0.92) translateY(8px); }
+            100% { opacity: 1; transform: scale(1) translateY(0); }
+        }
+
+        .pulse-badge {
+            animation: pulseGlow 2s infinite;
+        }
+
+        @keyframes pulseGlow {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.65; }
+        }
+    </style>
+</head>
+<body class="text-slate-100 min-h-screen font-sans selection:bg-amber-500 selection:text-black pb-20">
+
+    <!-- Header & Image Analysis Summary -->
+    <header class="border-b border-sf-border bg-sf-bg/90 backdrop-blur-md sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5">
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div class="flex items-center gap-3">
+                    <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-amber-500 via-red-600 to-purple-700 p-0.5 shadow-lg shadow-red-900/30">
+                        <div class="w-full h-full bg-sf-bg rounded-[10px] flex items-center justify-center">
+                            <i class="ph-fill ph-sword text-2xl text-amber-400"></i>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <h1 class="font-display font-bold text-xl sm:text-2xl tracking-wider text-white uppercase">
+                                Shadow Fight 4: Arena
+                            </h1>
+                            <span class="hidden sm:inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/30">
+                                31 Heroes Analyzed
+                            </span>
+                        </div>
+                        <p class="text-xs sm:text-sm text-slate-400">
+                            Multiple Votes Allowed • Top 6 Highest Voted Characters Automatically Fill the Roster Slots
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Action Toolbar -->
+                <div class="flex flex-wrap items-center gap-2">
+                    <button onclick="openAnalysisModal()" class="px-3.5 py-2 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 text-slate-200 border border-slate-700 text-xs sm:text-sm font-medium flex items-center gap-2 transition-all">
+                        <i class="ph ph-chart-pie-slice text-amber-400 text-base"></i>
+                        <span>Image Breakdown (31)</span>
+                    </button>
+                    <button onclick="simulateCrowdVotes()" class="px-3.5 py-2 rounded-xl bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/40 text-xs sm:text-sm font-medium flex items-center gap-1.5 transition-all">
+                        <i class="ph-fill ph-sparkle text-indigo-400 text-base"></i>
+                        <span>Simulate Votes</span>
+                    </button>
+                    <button onclick="simulateTieScenario()" class="px-3.5 py-2 rounded-xl bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/40 text-xs sm:text-sm font-medium flex items-center gap-1.5 transition-all" title="Test Tiebreaker Scenario">
+                        <i class="ph-fill ph-scales text-purple-400 text-base"></i>
+                        <span>Test Tie</span>
+                    </button>
+                    <button onclick="resetAllVotes()" class="px-3.5 py-2 rounded-xl bg-rose-600/15 hover:bg-rose-600/25 text-rose-300 border border-rose-500/30 text-xs sm:text-sm font-medium flex items-center gap-1.5 transition-all">
+                        <i class="ph ph-arrow-counter-clockwise text-base"></i>
+                        <span>Reset</span>
+                    </button>
+                    <button onclick="handleEndVote()" class="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-red-600 hover:from-amber-400 hover:to-red-500 text-slate-950 font-extrabold text-xs sm:text-sm flex items-center gap-1.5 shadow-lg shadow-amber-500/20 transition-all">
+                        <i class="ph-fill ph-flag-checkered text-base"></i>
+                        <span>End Vote</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 space-y-8">
+
+        <!-- TOP 6 SELECTED SLOTS SECTION -->
+        <section aria-labelledby="top-slots-heading" class="relative rounded-2xl bg-gradient-to-b from-slate-900/95 to-sf-card border border-slate-800/90 p-5 sm:p-6 shadow-2xl">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
+                <div>
+                    <div class="flex items-center gap-2.5">
+                        <span class="flex h-3 w-3 relative">
+                            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                            <span class="relative inline-flex rounded-full h-3 w-3 bg-amber-500"></span>
+                        </span>
+                        <h2 id="top-slots-heading" class="font-display font-bold text-lg sm:text-xl tracking-wide text-white uppercase">
+                            Top 6 Selected Champions Roster
+                        </h2>
+                    </div>
+                    <p class="text-xs sm:text-sm text-slate-400 mt-0.5">
+                        These 6 slots dynamically lock in the characters with the highest vote counts. Cast multiple votes below!
+                    </p>
+                </div>
+
+                <!-- Live Stats Pill -->
+                <div class="flex items-center gap-3 self-start sm:self-auto bg-sf-bg/90 border border-sf-border px-4 py-2 rounded-xl">
+                    <div class="text-center pr-3 border-r border-slate-800">
+                        <span class="block text-[10px] uppercase tracking-wider text-slate-400">Slots Filled</span>
+                        <span id="slots-filled-count" class="font-bold text-sm sm:text-base text-amber-400">0 / 6</span>
+                    </div>
+                    <div class="text-center pr-3 border-r border-slate-800">
+                        <span class="block text-[10px] uppercase tracking-wider text-slate-400">Total Votes</span>
+                        <span id="total-votes-count" class="font-bold text-sm sm:text-base text-white">0</span>
+                    </div>
+                    <button onclick="copyResultsToClipboard()" class="text-xs font-medium text-amber-400 hover:text-amber-300 flex items-center gap-1 transition-colors" title="Share Top 6 Roster">
+                        <i class="ph ph-share-network text-base"></i>
+                        <span class="hidden md:inline">Share</span>
+                    </button>
+                    <button onclick="handleEndVote()" class="ml-1 px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-xs flex items-center gap-1 transition-all shadow">
+                        <i class="ph-fill ph-trophy text-sm"></i>
+                        <span>Finalize Top 6</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Tie Warning Banner (Shown dynamically when boundary slots have tied votes) -->
+            <div id="live-tie-alert" class="hidden mb-4 rounded-xl bg-amber-500/10 border border-amber-500/40 px-4 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div class="flex items-center gap-2.5 text-xs sm:text-sm text-amber-200">
+                    <i class="ph-fill ph-warning-octagon text-xl text-amber-400 flex-shrink-0"></i>
+                    <span id="live-tie-alert-text">Tie detected on the cutoff slots! Clicking "End Vote" will launch a Tiebreaker Round.</span>
+                </div>
+                <button onclick="handleEndVote()" class="self-start sm:self-auto px-3.5 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs whitespace-nowrap transition">
+                    Resolve Tie & End Vote
+                </button>
+            </div>
+
+            <!-- 6 Slots Grid -->
+            <div id="top-six-slots" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3.5 sm:gap-4">
+                <!-- Populated dynamically via JS -->
+            </div>
+        </section>
+
+        <!-- FILTER & SEARCH CONTROLS -->
+        <section class="bg-sf-card/90 border border-sf-border rounded-2xl p-4 sm:p-5 shadow-lg space-y-4">
+            <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                
+                <!-- Faction Filter Tabs -->
+                <div class="flex flex-wrap items-center gap-2" role="tablist">
+                    <button onclick="setFactionFilter('ALL')" id="tab-ALL" class="faction-tab active-tab px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all flex items-center gap-2 bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20">
+                        <i class="ph-fill ph-users-three"></i>
+                        <span>All Factions</span>
+                        <span class="px-1.5 py-0.5 text-[11px] rounded-md bg-black/20 font-bold">31</span>
+                    </button>
+                    <button onclick="setFactionFilter('Legion')" id="tab-Legion" class="faction-tab px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all flex items-center gap-2 bg-slate-800/80 text-slate-300 hover:bg-red-950/50 hover:text-red-300 border border-slate-700/80">
+                        <i class="ph-fill ph-shield-chevron text-red-500"></i>
+                        <span>Legion</span>
+                        <span class="px-1.5 py-0.5 text-[11px] rounded-md bg-black/30">10</span>
+                    </button>
+                    <button onclick="setFactionFilter('Dynasty')" id="tab-Dynasty" class="faction-tab px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all flex items-center gap-2 bg-slate-800/80 text-slate-300 hover:bg-emerald-950/50 hover:text-emerald-300 border border-slate-700/80">
+                        <i class="ph-fill ph-flower-lotus text-emerald-400"></i>
+                        <span>Dynasty</span>
+                        <span class="px-1.5 py-0.5 text-[11px] rounded-md bg-black/30">11</span>
+                    </button>
+                    <button onclick="setFactionFilter('Heralds')" id="tab-Heralds" class="faction-tab px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all flex items-center gap-2 bg-slate-800/80 text-slate-300 hover:bg-purple-950/50 hover:text-purple-300 border border-slate-700/80">
+                        <i class="ph-fill ph-Codesandbox-logo text-purple-400"></i>
+                        <span>Heralds</span>
+                        <span class="px-1.5 py-0.5 text-[11px] rounded-md bg-black/30">10</span>
+                    </button>
+                </div>
+
+                <!-- Rarity & Search Bar -->
+                <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                    <!-- Rarity Filter -->
+                    <select id="rarity-select" onchange="setRarityFilter(this.value)" class="bg-sf-bg border border-sf-border rounded-xl px-3.5 py-2 text-xs sm:text-sm text-slate-200 focus:outline-none focus:border-amber-500">
+                        <option value="ALL">All Rarities (31)</option>
+                        <option value="Common">Common (6)</option>
+                        <option value="Rare">Rare (8)</option>
+                        <option value="Epic">Epic (11)</option>
+                        <option value="Legendary">Legendary (6)</option>
+                    </select>
+
+                    <!-- Sort Order -->
+                    <select id="sort-select" onchange="setSortMode(this.value)" class="bg-sf-bg border border-sf-border rounded-xl px-3.5 py-2 text-xs sm:text-sm text-slate-200 focus:outline-none focus:border-amber-500">
+                        <option value="wiki">Wiki Order (By Faction & Rarity)</option>
+                        <option value="votes-desc">Highest Votes First</option>
+                        <option value="name-asc">Alphabetical (A - Z)</option>
+                    </select>
+
+                    <!-- Search Input -->
+                    <div class="relative flex-1 sm:w-56">
+                        <i class="ph ph-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                        <input 
+                            type="text" 
+                            id="search-input" 
+                            oninput="setSearchQuery(this.value)"
+                            placeholder="Search hero name..." 
+                            class="w-full bg-sf-bg border border-sf-border rounded-xl pl-9 pr-8 py-2 text-xs sm:text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-500"
+                        >
+                        <button id="clear-search-btn" onclick="setSearchQuery('')" class="hidden absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white">
+                            <i class="ph ph-x-circle"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Voting Tip Bar -->
+            <div class="pt-3 border-t border-slate-800/80 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-400">
+                <div class="flex items-center gap-2">
+                    <span class="inline-block w-2 h-2 rounded-full bg-emerald-400"></span>
+                    <span><strong>Multiple Votes Enabled:</strong> Click <kbd class="px-1.5 py-0.5 bg-slate-800 rounded text-slate-200 border border-slate-700">+1 Vote</kbd> or <kbd class="px-1.5 py-0.5 bg-slate-800 rounded text-slate-200 border border-slate-700">+5</kbd> as many times as you want on any number of heroes!</span>
+                </div>
+                <div class="flex items-center gap-3">
+                    <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-slate-400 inline-block"></span> Common</span>
+                    <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-sky-400 inline-block"></span> Rare</span>
+                    <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-purple-400 inline-block"></span> Epic</span>
+                    <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-amber-400 inline-block"></span> Legendary</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- CHARACTER VOTING POLL SECTIONS -->
+        <div id="characters-container" class="space-y-10">
+            <!-- Dynamically rendered via JS -->
+        </div>
+
+    </main>
+
+    <!-- IMAGE ANALYSIS MODAL -->
+    <div id="analysis-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+        <div class="bg-sf-card border border-slate-700 rounded-2xl max-w-2xl w-full p-6 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-4">
+                <div class="flex items-center gap-2.5">
+                    <i class="ph-fill ph-magnifying-glass-plus text-2xl text-amber-400"></i>
+                    <h3 class="font-display font-bold text-lg sm:text-xl text-white uppercase">
+                        Screenshot Character Count Analysis
+                    </h3>
+                </div>
+                <button onclick="closeAnalysisModal()" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-300">
+                    <i class="ph ph-x text-lg"></i>
+                </button>
+            </div>
+
+            <div class="space-y-4 text-sm text-slate-300">
+                <p>
+                    We analyzed your uploaded long-scroll screenshot from the <strong>Shadow Fight 4: Arena Wiki</strong>. In total, there are exactly <strong class="text-amber-400">31 Playable Heroes</strong> organized into 3 Factions and 4 Rarity tiers:
+                </p>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <!-- Legion Box -->
+                    <div class="bg-red-950/20 border border-red-500/30 rounded-xl p-4 space-y-2">
+                        <div class="flex items-center justify-between">
+                            <span class="font-bold text-red-400 uppercase tracking-wider">Legion</span>
+                            <span class="px-2 py-0.5 rounded bg-red-500/20 text-red-300 text-xs font-bold">10 Heroes</span>
+                        </div>
+                        <ul class="text-xs space-y-1.5 text-slate-300">
+                            <li><strong class="text-slate-400">Common (3):</strong> Kate, Ironclad, Jack Bulwark</li>
+                            <li><strong class="text-sky-400">Rare (2):</strong> Helga, Sarge</li>
+                            <li><strong class="text-purple-400">Epic (3):</strong> Marcus, Lord Gideon, Grand Inquisitor</li>
+                            <li><strong class="text-amber-400">Legendary (2):</strong> King of the Legion, Nonna</li>
+                        </ul>
+                    </div>
+
+                    <!-- Dynasty Box -->
+                    <div class="bg-emerald-950/20 border border-emerald-500/30 rounded-xl p-4 space-y-2">
+                        <div class="flex items-center justify-between">
+                            <span class="font-bold text-emerald-400 uppercase tracking-wider">Dynasty</span>
+                            <span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 text-xs font-bold">11 Heroes</span>
+                        </div>
+                        <ul class="text-xs space-y-1.5 text-slate-300">
+                            <li><strong class="text-slate-400">Common (1):</strong> Shang</li>
+                            <li><strong class="text-sky-400">Rare (4):</strong> Hong-Joo, Jet, Yukka, Yunlin</li>
+                            <li><strong class="text-purple-400">Epic (4):</strong> Butcher, Emperor, Xiang Tzu, Widow</li>
+                            <li><strong class="text-amber-400">Legendary (2):</strong> Monkey King, June</li>
+                        </ul>
+                    </div>
+
+                    <!-- Heralds Box -->
+                    <div class="bg-purple-950/20 border border-purple-500/30 rounded-xl p-4 space-y-2">
+                        <div class="flex items-center justify-between">
+                            <span class="font-bold text-purple-400 uppercase tracking-wider">Heralds</span>
+                            <span class="px-2 py-0.5 rounded bg-purple-500/20 text-purple-300 text-xs font-bold">10 Heroes</span>
+                        </div>
+                        <ul class="text-xs space-y-1.5 text-slate-300">
+                            <li><strong class="text-slate-400">Common (2):</strong> Azuma, Fireguard</li>
+                            <li><strong class="text-sky-400">Rare (2):</strong> Cobra, Ling</li>
+                            <li><strong class="text-purple-400">Epic (4):</strong> Kibo, Lynx, Midnight, Raikichi</li>
+                            <li><strong class="text-amber-400">Legendary (2):</strong> Itu, Shogun</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="bg-slate-900/90 border border-slate-800 rounded-xl p-3.5 flex items-center justify-between text-xs">
+                    <span><strong>Total Count by Rarity:</strong> 6 Common • 8 Rare • 11 Epic • 6 Legendary</span>
+                    <span class="font-bold text-amber-400">Total = 31 Characters</span>
+                </div>
+            </div>
+
+            <div class="flex justify-end pt-2">
+                <button onclick="closeAnalysisModal()" class="px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-semibold text-sm transition-colors">
+                    Back to Voting Poll
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- TIEBREAKER ARENA MODAL -->
+    <div id="tiebreaker-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/85 backdrop-blur-md p-4">
+        <div class="bg-sf-card border-2 border-amber-500/60 rounded-3xl max-w-4xl w-full p-6 sm:p-8 shadow-2xl space-y-6 max-h-[92vh] overflow-y-auto">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+                <div class="flex items-center gap-3">
+                    <div class="w-12 h-12 rounded-2xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400">
+                        <i class="ph-fill ph-scales text-2xl"></i>
+                    </div>
+                    <div>
+                        <span class="text-[11px] font-extrabold uppercase tracking-widest text-amber-400 block">Sudden Death Tiebreaker Required</span>
+                        <h3 class="font-display font-bold text-xl sm:text-2xl text-white uppercase">
+                            Cutoff Slot Tiebreaker Arena
+                        </h3>
+                    </div>
+                </div>
+                <button onclick="closeTiebreakerModal()" class="self-end sm:self-auto px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold flex items-center gap-1.5">
+                    <i class="ph ph-arrow-left"></i>
+                    <span>Return to Poll</span>
+                </button>
+            </div>
+
+            <!-- Explanation Banner -->
+            <div class="rounded-2xl bg-slate-900/90 border border-slate-800 p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div class="space-y-1">
+                    <p id="tiebreaker-description" class="text-sm text-slate-200 font-medium">
+                        Multiple heroes are tied with the same low vote count for the remaining Top 6 slots!
+                    </p>
+                    <p class="text-xs text-slate-400">
+                        Select the exact number of winners below (or click <strong>Randomize Tiebreaker</strong>) to occupy the remaining slot(s).
+                    </p>
+                </div>
+                <div class="flex items-center gap-3 flex-shrink-0">
+                    <div class="px-4 py-2 rounded-xl bg-amber-500/10 border border-amber-500/30 text-center">
+                        <span class="block text-[10px] uppercase tracking-wider text-amber-300">Selected</span>
+                        <span id="tiebreaker-counter" class="font-extrabold text-base text-amber-400">0 / 2</span>
+                    </div>
+                    <button onclick="autoPickTiebreaker()" class="px-3.5 py-2.5 rounded-xl bg-purple-600/25 hover:bg-purple-600/40 border border-purple-500/40 text-purple-200 text-xs font-bold flex items-center gap-1.5 transition">
+                        <i class="ph-fill ph-dice-five text-base"></i>
+                        <span>Randomize</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Locked Safe Champions Preview -->
+            <div id="tiebreaker-locked-section" class="space-y-2">
+                <span class="text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+                    <i class="ph-fill ph-lock-key"></i>
+                    <span>Already Locked In Higher Slots</span>
+                </span>
+                <div id="tiebreaker-locked-list" class="flex flex-wrap gap-2"></div>
+            </div>
+
+            <!-- Tied Candidates Grid -->
+            <div class="space-y-3">
+                <span class="text-xs font-bold uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
+                    <i class="ph-fill ph-lightning"></i>
+                    <span id="tiebreaker-Instruction-label">Click to select heroes to fill the remaining slots:</span>
+                </span>
+                <div id="tiebreaker-candidates-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5">
+                    <!-- Populated via JS -->
+                </div>
+            </div>
+
+            <!-- Footer Actions -->
+            <div class="pt-4 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3">
+                <span class="text-xs text-slate-400">
+                    Winners receive a Tiebreaker Victory Stamp and advance to the Final 6 Showcase.
+                </span>
+                <button id="confirm-tiebreaker-btn" onclick="confirmTiebreakerWinners()" disabled class="w-full sm:w-auto px-6 py-3 rounded-xl bg-gradient-to-r from-amber-500 to-red-600 hover:from-amber-400 hover:to-red-500 disabled:opacity-40 disabled:pointer-events-none text-slate-950 font-extrabold text-sm flex items-center justify-center gap-2 shadow-lg transition">
+                    <i class="ph-fill ph-check-fat"></i>
+                    <span>Confirm Tiebreaker & View Final 6</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- BIG FINAL 6 SHOWCASE WINDOW MODAL -->
+    <div id="final-showcase-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/90 backdrop-blur-lg p-3 sm:p-6 overflow-y-auto">
+        <div class="relative bg-gradient-to-b from-slate-900 via-sf-card to-sf-bg border-2 border-amber-500/70 rounded-3xl max-w-6xl w-full p-5 sm:p-8 shadow-[0_0_60px_-10px_rgba(251,191,36,0.3)] my-auto space-y-6">
+            
+            <!-- Header -->
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800/90 pb-5">
+                <div class="flex items-center gap-3.5">
+                    <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-400 via-amber-500 to-red-600 p-0.5 shadow-lg shadow-amber-500/20">
+                        <div class="w-full h-full bg-sf-bg rounded-[14px] flex items-center justify-center">
+                            <i class="ph-fill ph-trophy text-3xl text-amber-400"></i>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <span class="px-2.5 py-0.5 rounded-full text-[11px] font-extrabold uppercase tracking-widest bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                                Official Poll Results
+                            </span>
+                            <span id="final-total-votes-badge" class="text-xs text-slate-400 font-semibold"></span>
+                        </div>
+                        <h2 class="font-display font-extrabold text-2xl sm:text-3xl text-white uppercase tracking-wide mt-0.5">
+                            Selected Top 6 Champions Roster
+                        </h2>
+                    </div>
+                </div>
+
+                <div class="flex flex-wrap items-center gap-2.5">
+                    <button onclick="copyResultsToClipboard()" class="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-400 border border-slate-700 font-bold text-xs sm:text-sm flex items-center gap-2 transition">
+                        <i class="ph-fill ph-copy text-base"></i>
+                        <span>Copy Final Roster</span>
+                    </button>
+                    <button onclick="closeFinalShowcaseModal()" class="px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-xs sm:text-sm flex items-center gap-1.5 transition shadow-lg">
+                        <i class="ph-bold ph-pencil-simple"></i>
+                        <span>Continue / Edit Votes</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Big 6 Showcase Cards Grid -->
+            <div id="final-showcase-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                <!-- Populated dynamically via JS -->
+            </div>
+
+            <!-- Footer Summary -->
+            <div class="rounded-2xl bg-sf-bg/80 border border-slate-800/90 p-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-400">
+                <div class="flex items-center gap-2">
+                    <i class="ph-fill ph-Seal-Check text-amber-400 text-lg"></i>
+                    <span>All 6 slots finalized from the 31 Shadow Fight 4: Arena character roster.</span>
+                </div>
+                <button onclick="resetAllVotes(); closeFinalShowcaseModal();" class="text-rose-400 hover:text-rose-300 font-semibold flex items-center gap-1">
+                    <i class="ph ph-trash"></i>
+                    <span>Start New Poll</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- TOAST NOTIFICATION -->
+    <div id="toast-box" class="fixed bottom-5 right-5 z-50 pointer-events-none opacity-0 translate-y-3 transition-all duration-300">
+        <div class="bg-slate-900/95 border border-amber-500/40 text-slate-100 px-4 py-3 rounded-xl shadow-2xl flex items-center gap-2.5 text-sm">
+            <i id="toast-icon" class="ph-fill ph-check-circle text-amber-400 text-lg"></i>
+            <span id="toast-text">Vote registered!</span>
+        </div>
+    </div>
+
+    <script>
+        /**
+         * Complete dataset of all 31 characters from the uploaded Shadow Fight 4 Wiki screenshot,
+         * preserving exact Faction, Rarity, Weapon/Title, and Wiki visual order.
+         */
+        const INITIAL_CHARACTERS = [
+            // ================= LEGION (10) =================
+            { id: 'kate', name: 'Kate', faction: 'Legion', rarity: 'Common', weapon: 'Broadswords • Liquidator', icon: '⚔️', wikiOrder: 1 },
+            { id: 'ironclad', name: 'Ironclad', faction: 'Legion', rarity: 'Common', weapon: 'Hand-to-Hand • Brawler', icon: '🥊', wikiOrder: 2 },
+            { id: 'jack_bulwark', name: 'Jack Bulwark', faction: 'Legion', rarity: 'Common', weapon: 'Flail & Shield • Fortress', icon: '🛡️', wikiOrder: 3 },
+            { id: 'helga', name: 'Helga', faction: 'Legion', rarity: 'Rare', weapon: 'Rapier • Power of Light', icon: '✨', wikiOrder: 4 },
+            { id: 'sarge', name: 'Sarge', faction: 'Legion', rarity: 'Rare', weapon: 'War Hammers • Commander', icon: '🔨', wikiOrder: 5 },
+            { id: 'marcus', name: 'Marcus', faction: 'Legion', rarity: 'Epic', weapon: 'Giant Sword • Glitch General', icon: '🗡️', wikiOrder: 6 },
+            { id: 'lord_gideon', name: 'Lord Gideon', faction: 'Legion', rarity: 'Epic', weapon: 'Rifle & Sabre • Bounty Hunter', icon: '🔫', wikiOrder: 7 },
+            { id: 'grand_inquisitor', name: 'Grand Inquisitor', faction: 'Legion', rarity: 'Epic', weapon: 'Incense Burner • Zealot', icon: '🔥', wikiOrder: 8 },
+            { id: 'kotl', name: 'King of the Legion', faction: 'Legion', rarity: 'Legendary', weapon: 'Slender Sword • Sovereign', icon: '👑', wikiOrder: 9 },
+            { id: 'nonna', name: 'Nonna', faction: 'Legion', rarity: 'Legendary', weapon: 'Runic Guardian • Northern Matriarch', icon: '🪓', wikiOrder: 10 },
+
+            // ================= DYNASTY (11) =================
+            { id: 'shang', name: 'Shang', faction: 'Dynasty', rarity: 'Common', weapon: 'Guandao • Monk of Shadow', icon: '🌙', wikiOrder: 11 },
+            { id: 'hong_joo', name: 'Hong-Joo', faction: 'Dynasty', rarity: 'Rare', weapon: 'Sanjiegun • Acrobat Triumph', icon: '🎭', wikiOrder: 12 },
+            { id: 'jet', name: 'Jet', faction: 'Dynasty', rarity: 'Rare', weapon: 'Composite Glaive • Wasteland', icon: '🪃', wikiOrder: 13 },
+            { id: 'yukka', name: 'Yukka', faction: 'Dynasty', rarity: 'Rare', weapon: 'Deer Horns & Shade • Rebel', icon: '🐾', wikiOrder: 14 },
+            { id: 'yunlin', name: 'Yunlin', faction: 'Dynasty', rarity: 'Rare', weapon: 'Moon Flute • Mystic Tunes', icon: '🪈', wikiOrder: 15 },
+            { id: 'butcher', name: 'Butcher', faction: 'Dynasty', rarity: 'Epic', weapon: 'Cleavers • Tremor Cage', icon: '🥩', wikiOrder: 16 },
+            { id: 'emperor', name: 'Emperor', faction: 'Dynasty', rarity: 'Epic', weapon: 'Shadow Beast • Royal Transformation', icon: '🐉', wikiOrder: 17 },
+            { id: 'xiang_tzu', name: 'Xiang Tzu', faction: 'Dynasty', rarity: 'Epic', weapon: 'Three-Weapon Master • Rage', icon: '💢', wikiOrder: 18 },
+            { id: 'widow', name: 'Widow', faction: 'Dynasty', rarity: 'Epic', weapon: 'War Fans • Enchantress', icon: '🪭', wikiOrder: 19 },
+            { id: 'monkey_king', name: 'Monkey King', faction: 'Dynasty', rarity: 'Legendary', weapon: 'Jingu Staff • Great Sage', icon: '🐒', wikiOrder: 20 },
+            { id: 'june', name: 'June', faction: 'Dynasty', rarity: 'Legendary', weapon: 'Chain Knife • Astral Princess', icon: '☄️', wikiOrder: 21 },
+
+            // ================= HERALDS (10) =================
+            { id: 'azuma', name: 'Azuma', faction: 'Heralds', rarity: 'Common', weapon: 'Naginata • Feldsher', icon: '💉', wikiOrder: 22 },
+            { id: 'fireguard', name: 'Fireguard', faction: 'Heralds', rarity: 'Common', weapon: 'Kamasa • Shadow Bot', icon: '🤖', wikiOrder: 23 },
+            { id: 'cobra', name: 'Cobra', faction: 'Heralds', rarity: 'Rare', weapon: 'Katar • Serpent Toxin', icon: '🐍', wikiOrder: 24 },
+            { id: 'ling', name: 'Ling', faction: 'Heralds', rarity: 'Rare', weapon: 'Katana • Slashing Strike Master', icon: '🍶', wikiOrder: 25 },
+            { id: 'kibo', name: 'Kibo', faction: 'Heralds', rarity: 'Epic', weapon: 'Katana • Shadow Onslaught', icon: '⚡', wikiOrder: 26 },
+            { id: 'lynx', name: 'Lynx', faction: 'Heralds', rarity: 'Epic', weapon: 'Claws • Demon Assassin', icon: '😼', wikiOrder: 27 },
+            { id: 'midnight', name: 'Midnight', faction: 'Heralds', rarity: 'Epic', weapon: 'Sai • Blink Executioner', icon: '🌑', wikiOrder: 28 },
+            { id: 'raikichi', name: 'Raikichi', faction: 'Heralds', rarity: 'Epic', weapon: 'Thunder Blade • Voltaic Shinobi', icon: '🌩️', wikiOrder: 29 },
+            { id: 'itu', name: 'Itu', faction: 'Heralds', rarity: 'Legendary', weapon: 'Iaido Katana • Time Manipulation', icon: '⏳', wikiOrder: 30 },
+            { id: 'shogun', name: 'Shogun', faction: 'Heralds', rarity: 'Legendary', weapon: 'Daisho • Warlord Bodyguards', icon: '👹', wikiOrder: 31 }
+        ];
+
+        // State Management
+        let votes = {}; // { characterId: voteCount }
+        let lastVotedTime = {}; // { characterId: timestamp } for tie-breaking
+        let tiebreakerWinners = {}; // { characterId: rankOrder } chosen during manual tiebreaker
+        let activeFaction = 'ALL';
+        let activeRarity = 'ALL';
+        let activeSort = 'wiki';
+        let searchQuery = '';
+
+        // Active Tiebreaker Session State
+        let currentTieSession = {
+            lockedHeroes: [],
+            tiedCandidates: [],
+            slotsRemaining: 0,
+            tiedVoteCount: 0,
+            selectedIds: new Set()
+        };
+
+        // Storage Key
+        const STORAGE_KEY = 'sf4_character_poll_votes_v1';
+
+        function loadState() {
+            try {
+                const saved = localStorage.getItem(STORAGE_KEY);
+                if (saved) {
+                    const parsed = JSON.parse(saved);
+                    votes = parsed.votes || {};
+                    lastVotedTime = parsed.lastVotedTime || {};
+                    tiebreakerWinners = parsed.tiebreakerWinners || {};
+                }
+            } catch (e) {
+                votes = {};
+                lastVotedTime = {};
+                tiebreakerWinners = {};
+            }
+            // Initialize missing keys
+            INITIAL_CHARACTERS.forEach(c => {
+                if (typeof votes[c.id] !== 'number') votes[c.id] = 0;
+                if (typeof lastVotedTime[c.id] !== 'number') lastVotedTime[c.id] = 0;
+            });
+        }
+
+        function saveState() {
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify({ votes, lastVotedTime, tiebreakerWinners }));
+            } catch (e) {
+                // Ignore storage errors
+            }
+        }
+
+        // Generate bespoke SVG Avatar for each Hero based on Faction & Rarity
+        function createHeroAvatarSVG(hero, sizeClasses = "w-16 h-16 sm:w-20 sm:h-20", iconSize = "text-2xl sm:text-3xl") {
+            const factionPalettes = {
+                Legion: { bg1: '#450a0a', bg2: '#991b1b', accent: '#f87171' },
+                Dynasty: { bg1: '#064e3b', bg2: '#047857', accent: '#34d399' },
+                Heralds: { bg1: '#3b0764', bg2: '#6b21a8', accent: '#c084fc' }
+            };
+            const rarityBorder = {
+                Common: '#94a3b8',
+                Rare: '#38bdf8',
+                Epic: '#c084fc',
+                Legendary: '#fbbf24'
+            };
+
+            const pal = factionPalettes[hero.faction];
+            const rim = rarityBorder[hero.rarity];
+            const initials = hero.name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+
+            return `
+                <div class="relative ${sizeClasses} rounded-2xl overflow-hidden flex-shrink-0 border-2 shadow-inner flex items-center justify-center select-none"
+                     style="border-color: ${rim}; background: linear-gradient(135deg, ${pal.bg1} 0%, ${pal.bg2} 100%);">
+                    <!-- Decorative geometric silhouette -->
+                    <svg class="absolute inset-0 w-full h-full opacity-25" viewBox="0 0 100 100" fill="none">
+                        <circle cx="50" cy="34" r="18" fill="${pal.accent}"/>
+                        <path d="M20 92 C20 65, 80 65, 80 92 Z" fill="${pal.accent}"/>
+                        <circle cx="50" cy="50" r="46" stroke="${rim}" stroke-width="2" stroke-dasharray="6 4"/>
+                    </svg>
+                    <span class="relative z-10 ${iconSize} filter drop-shadow">${hero.icon}</span>
+                    <span class="absolute bottom-1 right-1.5 text-[10px] font-extrabold tracking-tighter px-1 rounded bg-black/60 text-white/90">
+                        ${initials}
+                    </span>
+                </div>
+            `;
+        }
+
+        // Compute Top 6 Characters (with >= 1 vote) sorted by highest votes, respecting manual tiebreaker winners first
+        function getTopSixRanked() {
+            return INITIAL_CHARACTERS
+                .filter(c => (votes[c.id] || 0) > 0)
+                .sort((a, b) => {
+                    const diff = (votes[b.id] || 0) - (votes[a.id] || 0);
+                    if (diff !== 0) return diff;
+                    // Check if resolved via Tiebreaker Arena
+                    const tbA = tiebreakerWinners[a.id] || 0;
+                    const tbB = tiebreakerWinners[b.id] || 0;
+                    if (tbA !== tbB) return tbB - tbA;
+                    // Earlier reached or recent interaction tie-break
+                    return (lastVotedTime[a.id] || 0) - (lastVotedTime[b.id] || 0);
+                })
+                .slice(0, 6);
+        }
+
+        /**
+         * Analyze if there is a tie at the 6th-slot cutoff boundary.
+         * Example: 4 heroes have >3 votes, and 5 heroes are tied at 3 votes competing for the last 2 slots.
+         */
+        function analyzeBoundaryTie() {
+            const votedHeroes = INITIAL_CHARACTERS
+                .filter(c => (votes[c.id] || 0) > 0)
+                .sort((a, b) => (votes[b.id] || 0) - (votes[a.id] || 0));
+
+            if (votedHeroes.length <= 6) {
+                return { hasTie: false, lockedHeroes: votedHeroes, tiedCandidates: [], slotsRemaining: 0, tiedVoteCount: 0 };
+            }
+
+            // Vote count of the character at index 5 (the 6th slot)
+            const cutoffVote = votes[votedHeroes[5].id];
+            // Check if the 7th character (index 6) ALSO has the exact same cutoffVote
+            const seventhVote = votes[votedHeroes[6].id];
+
+            if (cutoffVote !== seventhVote) {
+                return { hasTie: false, lockedHeroes: votedHeroes.slice(0, 6), tiedCandidates: [], slotsRemaining: 0, tiedVoteCount: 0 };
+            }
+
+            // Find all characters strictly above the cutoff vote (safely locked in Top 6)
+            const lockedHeroes = votedHeroes.filter(c => (votes[c.id] || 0) > cutoffVote);
+            // Find all characters tied at the cutoff vote (both inside and outside the remaining slots)
+            const tiedCandidates = votedHeroes.filter(c => (votes[c.id] || 0) === cutoffVote);
+            const slotsRemaining = 6 - lockedHeroes.length;
+
+            // Check if the user has already resolved this exact tie via tiebreakerWinners
+            const resolvedWinnersInGroup = tiedCandidates.filter(c => (tiebreakerWinners[c.id] || 0) > 0);
+            const isAlreadyResolved = resolvedWinnersInGroup.length === slotsRemaining;
+
+            return {
+                hasTie: true,
+                isAlreadyResolved,
+                lockedHeroes,
+                tiedCandidates,
+                slotsRemaining,
+                tiedVoteCount: cutoffVote
+            };
+        }
+
+        // Vote Manipulation
+        function addVote(charId, amount = 1) {
+            const current = votes[charId] || 0;
+            const next = Math.max(0, current + amount);
+            votes[charId] = next;
+            // Clear previous manual tiebreakers when votes change so ties are re-evaluated fresh
+            tiebreakerWinners = {};
+            if (amount > 0 && current === 0) {
+                lastVotedTime[charId] = Date.now();
+            }
+            saveState();
+            renderAll();
+
+            const hero = INITIAL_CHARACTERS.find(c => c.id === charId);
+            if (hero && amount > 0) {
+                showToast(`+${amount} Vote${amount > 1 ? 's' : ''} for ${hero.name}! (Total: ${next})`);
+            }
+        }
+
+        // Render Top 6 Slots
+        function renderTopSixSlots() {
+            const container = document.getElementById('top-six-slots');
+            const topSix = getTopSixRanked();
+            const totalVotes = Object.values(votes).reduce((acc, v) => acc + v, 0);
+            const tieInfo = analyzeBoundaryTie();
+
+            document.getElementById('slots-filled-count').textContent = `${topSix.length} / 6`;
+            document.getElementById('total-votes-count').textContent = totalVotes.toLocaleString();
+
+            // Show or hide Live Tie Alert Banner
+            const alertBox = document.getElementById('live-tie-alert');
+            const alertText = document.getElementById('live-tie-alert-text');
+            if (tieInfo.hasTie && !tieInfo.isAlreadyResolved) {
+                alertBox.classList.remove('hidden');
+                alertText.innerHTML = `<strong>Cutoff Tie Detected:</strong> <strong>${tieInfo.tiedCandidates.length} characters</strong> are tied with <strong>${tieInfo.tiedVoteCount} vote${tieInfo.tiedVoteCount > 1 ? 's' : ''}</strong> competing for the last <strong>${tieInfo.slotsRemaining} slot${tieInfo.slotsRemaining > 1 ? 's' : ''}</strong>! Click "Resolve Tie & End Vote" to launch the Tiebreaker.`;
+            } else {
+                alertBox.classList.add('hidden');
+            }
+
+            const rarityBadgeColors = {
+                Common: 'bg-slate-500/20 text-slate-300 border-slate-500/40',
+                Rare: 'bg-sky-500/20 text-sky-300 border-sky-500/40',
+                Epic: 'bg-purple-500/20 text-purple-300 border-purple-500/40',
+                Legendary: 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+            };
+
+            const factionBadgeColors = {
+                Legion: 'text-red-400',
+                Dynasty: 'text-emerald-400',
+                Heralds: 'text-purple-400'
+            };
+
+            let html = '';
+
+            for (let i = 0; i < 6; i++) {
+                const hero = topSix[i];
+                const rankNum = i + 1;
+
+                if (hero) {
+                    const heroVotes = votes[hero.id] || 0;
+                    const voteShare = totalVotes > 0 ? Math.round((heroVotes / totalVotes) * 100) : 0;
+                    const isTiedSlot = tieInfo.hasTie && heroVotes === tieInfo.tiedVoteCount;
+                    const wonTiebreaker = (tiebreakerWinners[hero.id] || 0) > 0;
+
+                    const rankColors = [
+                        'from-amber-400 to-yellow-600 text-slate-950', // #1 Gold
+                        'from-slate-200 to-slate-400 text-slate-950',  // #2 Silver
+                        'from-amber-600 to-amber-800 text-white',      // #3 Bronze
+                        'from-indigo-500 to-indigo-700 text-white',
+                        'from-indigo-500 to-indigo-700 text-white',
+                        'from-indigo-500 to-indigo-700 text-white'
+                    ];
+
+                    html += `
+                        <div class="slot-card-enter relative rounded-2xl bg-gradient-to-b from-slate-800/90 to-sf-bg border-2 ${isTiedSlot && !wonTiebreaker ? 'border-rose-500/70' : 'border-amber-500/50'} p-3.5 flex flex-col justify-between shadow-xl rarity-glow-${hero.rarity}">
+                            <!-- Top Row: Rank Badge & Remove Button -->
+                            <div class="flex items-center justify-between gap-1 mb-2">
+                                <span class="px-2 py-0.5 rounded-lg text-xs font-extrabold bg-gradient-to-r ${rankColors[i]} shadow">
+                                    #${rankNum} SLOT
+                                </span>
+                                ${wonTiebreaker ? `
+                                    <span class="px-1.5 py-0.5 rounded bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-[10px] font-bold" title="Won Tiebreaker">
+                                        TB WIN
+                                    </span>
+                                ` : isTiedSlot ? `
+                                    <span class="px-1.5 py-0.5 rounded bg-rose-500/20 border border-rose-500/40 text-rose-300 text-[10px] font-bold animate-pulse" title="Tied with other heroes">
+                                        TIED (${heroVotes})
+                                    </span>
+                                ` : ''}
+                                <button onclick="clearCharacterVotes('${hero.id}')" title="Clear votes for ${hero.name}" class="text-slate-400 hover:text-rose-400 transition-colors p-1">
+                                    <i class="ph ph-x text-xs"></i>
+                                </button>
+                            </div>
+
+                            <!-- Center Avatar & Info -->
+                            <div class="flex flex-col items-center text-center my-1">
+                                ${createHeroAvatarSVG(hero)}
+                                <h3 class="font-bold text-sm sm:text-base text-white mt-2.5 line-clamp-1">${hero.name}</h3>
+                                <div class="flex items-center gap-1.5 mt-1">
+                                    <span class="text-[11px] font-semibold ${factionBadgeColors[hero.faction]}">${hero.faction}</span>
+                                    <span class="text-slate-600">•</span>
+                                    <span class="text-[10px] px-1.5 py-0.2 rounded border ${rarityBadgeColors[hero.rarity]}">${hero.rarity}</span>
+                                </div>
+                            </div>
+
+                            <!-- Vote Count & Quick +1 -->
+                            <div class="mt-3 pt-2.5 border-t border-slate-800/90 flex items-center justify-between">
+                                <div>
+                                    <span class="block text-xs text-slate-400">Votes (${voteShare}%)</span>
+                                    <span class="font-extrabold text-base text-amber-400">${heroVotes}</span>
+                                </div>
+                                <div class="flex items-center gap-1">
+                                    <button onclick="addVote('${hero.id}', -1)" class="w-7 h-7 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 flex items-center justify-center text-xs font-bold transition">
+                                        -
+                                    </button>
+                                    <button onclick="addVote('${hero.id}', 1)" class="px-2.5 h-7 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 flex items-center justify-center text-xs font-extrabold transition shadow">
+                                        +1
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    // Empty Slot Card
+                    html += `
+                        <div class="rounded-2xl bg-sf-bg/60 border-2 border-dashed border-slate-800 hover:border-slate-700 p-4 flex flex-col items-center justify-center text-center min-h-[210px] transition-colors group">
+                            <div class="w-14 h-14 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-600 group-hover:text-slate-400 group-hover:scale-105 transition-all mb-3">
+                                <span class="font-display font-bold text-lg">#${rankNum}</span>
+                            </div>
+                            <p class="font-semibold text-xs sm:text-sm text-slate-400">Empty Slot #${rankNum}</p>
+                            <p class="text-[11px] text-slate-500 mt-1 max-w-[140px]">
+                                Vote on characters below to fill this top slot
+                            </p>
+                        </div>
+                    `;
+                }
+            }
+
+            container.innerHTML = html;
+        }
+
+        // Render Character Poll Grid
+        function renderCharacterPoll() {
+            const container = document.getElementById('characters-container');
+            const topSixIds = new Set(getTopSixRanked().map(c => c.id));
+            const maxVoteCount = Math.max(1, ...Object.values(votes));
+
+            // Filter characters
+            let filtered = INITIAL_CHARACTERS.filter(char => {
+                const matchesFaction = activeFaction === 'ALL' || char.faction === activeFaction;
+                const matchesRarity = activeRarity === 'ALL' || char.rarity === activeRarity;
+                const matchesSearch = searchQuery === '' || 
+                    char.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    char.weapon.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                    char.faction.toLowerCase().includes(searchQuery.toLowerCase());
+                return matchesFaction && matchesRarity && matchesSearch;
+            });
+
+            if (filtered.length === 0) {
+                container.innerHTML = `
+                    <div class="bg-sf-card border border-sf-border rounded-2xl p-12 text-center space-y-3">
+                        <i class="ph ph-Mask-sad text-4xl text-slate-500"></i>
+                        <h3 class="text-lg font-bold text-white">No Heroes Match Your Filter</h3>
+                        <p class="text-sm text-slate-400">Try resetting your search query or switching faction/rarity filters.</p>
+                        <button onclick="resetFilters()" class="px-4 py-2 rounded-xl bg-amber-500 text-slate-950 font-semibold text-xs">
+                            Show All 31 Characters
+                        </button>
+                    </div>
+                `;
+                return;
+            }
+
+            // If Sort Mode is Wiki Order and not sorted by votes/alphabetical, group by Faction
+            if (activeSort === 'wiki') {
+                const factionsOrder = ['Legion', 'Dynasty', 'Heralds'];
+                const factionMeta = {
+                    Legion: {
+                        quote: '“A powerful faction of warriors who respect strength and honor. The society of the Legion is based on hierarchy and military discipline.”',
+                        color: 'text-red-400',
+                        border: 'border-red-500/30',
+                        bg: 'from-red-950/30 to-transparent',
+                        icon: 'ph-shield-chevron'
+                    },
+                    Dynasty: {
+                        quote: '“Citizens of the Dynastian Empire are agile and smart. Their ability to avoid direct conflict bought them wealth and diplomatic advantages.”',
+                        color: 'text-emerald-400',
+                        border: 'border-emerald-500/30',
+                        bg: 'from-emerald-950/30 to-transparent',
+                        icon: 'ph-flower-lotus'
+                    },
+                    Heralds: {
+                        quote: '“People who study secrets of shadow energy. These scientists are well-known for their precision in fight.”',
+                        color: 'text-purple-400',
+                        border: 'border-purple-500/30',
+                        bg: 'from-purple-950/30 to-transparent',
+                        icon: 'ph-Codesandbox-logo'
+                    }
+                };
+
+                let sectionsHtml = '';
+
+                factionsOrder.forEach(factionName => {
+                    const factionChars = filtered.filter(c => c.faction === factionName);
+                    if (factionChars.length === 0) return;
+
+                    const meta = factionMeta[factionName];
+
+                    sectionsHtml += `
+                        <section class="space-y-4">
+                            <!-- Faction Banner matching Wiki Screenshot -->
+                            <div class="rounded-2xl bg-gradient-to-r ${meta.bg} border ${meta.border} p-4 sm:p-5">
+                                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                    <div class="flex items-center gap-2.5">
+                                        <i class="ph-fill ${meta.icon} text-2xl ${meta.color}"></i>
+                                        <h2 class="font-display font-bold text-xl tracking-wider uppercase ${meta.color}">
+                                            ${factionName} Faction
+                                        </h2>
+                                        <span class="text-xs px-2.5 py-0.5 rounded-full bg-black/40 text-slate-300 font-semibold">
+                                            ${factionChars.length} Characters
+                                        </span>
+                                    </div>
+                                </div>
+                                <p class="text-xs sm:text-sm italic text-slate-300/90 mt-2">
+                                    ${meta.quote}
+                                </p>
+                            </div>
+
+                            <!-- Cards Grid -->
+                            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                                ${factionChars.map(char => renderCharacterCard(char, topSixIds, maxVoteCount)).join('')}
+                            </div>
+                        </section>
+                    `;
+                });
+
+                container.innerHTML = sectionsHtml;
+            } else {
+                // Flat sorted grid (Votes Desc or Alphabetical)
+                if (activeSort === 'votes-desc') {
+                    filtered.sort((a, b) => (votes[b.id] || 0) - (votes[a.id] || 0) || a.wikiOrder - b.wikiOrder);
+                } else if (activeSort === 'name-asc') {
+                    filtered.sort((a, b) => a.name.localeCompare(b.name));
+                }
+
+                container.innerHTML = `
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                        ${filtered.map(char => renderCharacterCard(char, topSixIds, maxVoteCount)).join('')}
+                    </div>
+                `;
+            }
+        }
+
+        // Single Character Card HTML
+        function renderCharacterCard(hero, topSixIds, maxVoteCount) {
+            const count = votes[hero.id] || 0;
+            const isTopSix = topSixIds.has(hero.id);
+            const rankIndex = isTopSix ? getTopSixRanked().findIndex(c => c.id === hero.id) + 1 : null;
+            const progressPct = count > 0 ? Math.max(8, Math.round((count / maxVoteCount) * 100)) : 0;
+
+            const rarityStyles = {
+                Common: { badge: 'bg-slate-500/20 text-slate-300 border-slate-500/40', bar: 'bg-slate-400' },
+                Rare: { badge: 'bg-sky-500/20 text-sky-300 border-sky-500/40', bar: 'bg-sky-400' },
+                Epic: { badge: 'bg-purple-500/20 text-purple-300 border-purple-500/40', bar: 'bg-purple-400' },
+                Legendary: { badge: 'bg-amber-500/20 text-amber-300 border-amber-500/40', bar: 'bg-amber-400' }
+            };
+
+            const rStyle = rarityStyles[hero.rarity];
+
+            return `
+                <div class="group relative rounded-2xl bg-sf-card border ${isTopSix ? 'border-amber-500/80 ring-1 ring-amber-500/30' : 'border-sf-border hover:border-slate-700'} p-4 flex flex-col justify-between transition-all duration-200 hover:-translate-y-0.5 shadow-lg">
+                    
+                    ${isTopSix ? `
+                        <div class="absolute -top-2.5 right-3 px-2.5 py-0.5 rounded-full bg-amber-500 text-slate-950 font-extrabold text-[11px] tracking-wide shadow-md flex items-center gap-1">
+                            <i class="ph-fill ph-crown-simple"></i>
+                            <span>TOP #${rankIndex} SELECTED</span>
+                        </div>
+                    ` : ''}
+
+                    <!-- Top Content -->
+                    <div class="flex items-start gap-3.5">
+                        ${createHeroAvatarSVG(hero)}
+
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center gap-1.5 flex-wrap">
+                                <span class="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded border ${rStyle.badge}">
+                                    ${hero.rarity}
+                                </span>
+                                <span class="text-[11px] text-slate-400 font-medium">${hero.faction}</span>
+                            </div>
+
+                            <h3 class="font-bold text-base text-white mt-1.5 truncate group-hover:text-amber-400 transition-colors">
+                                ${hero.name}
+                            </h3>
+                            <p class="text-xs text-slate-400 truncate mt-0.5" title="${hero.weapon}">
+                                ${hero.weapon}
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Progress Bar & Vote Controls -->
+                    <div class="mt-4 pt-3 border-t border-slate-800/80 space-y-2.5">
+                        <div class="flex items-center justify-between text-xs">
+                            <span class="text-slate-400 font-medium">Poll Votes</span>
+                            <span class="font-extrabold text-sm ${count > 0 ? 'text-amber-400' : 'text-slate-500'}">
+                                ${count.toLocaleString()} ${count === 1 ? 'vote' : 'votes'}
+                            </span>
+                        </div>
+
+                        <!-- Visual Bar -->
+                        <div class="w-full h-1.5 bg-slate-900 rounded-full overflow-hidden">
+                            <div class="h-full ${rStyle.bar} transition-all duration-300 rounded-full" style="width: ${progressPct}%"></div>
+                        </div>
+
+                        <!-- Interactive Multi-Vote Buttons -->
+                        <div class="flex items-center gap-1.5 pt-1">
+                            <button 
+                                onclick="addVote('${hero.id}', -1)" 
+                                ${count === 0 ? 'disabled' : ''}
+                                class="w-9 h-9 rounded-xl border border-slate-700 bg-slate-800/70 hover:bg-slate-700 disabled:opacity-30 disabled:pointer-events-none text-slate-200 flex items-center justify-center transition"
+                                title="Remove 1 Vote">
+                                <i class="ph-bold ph-minus text-xs"></i>
+                            </button>
+
+                            <button 
+                                onclick="addVote('${hero.id}', 1)" 
+                                class="flex-1 h-9 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 active:scale-[0.98] text-slate-950 font-extrabold text-xs sm:text-sm flex items-center justify-center gap-1.5 shadow-md shadow-amber-500/10 transition">
+                                <i class="ph-fill ph-thumbs-up"></i>
+                                <span>+1 Vote</span>
+                            </button>
+
+                            <button 
+                                onclick="addVote('${hero.id}', 5)" 
+                                class="px-2.5 h-9 rounded-xl border border-amber-500/40 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 font-bold text-xs flex items-center justify-center transition"
+                                title="Boost +5 Votes">
+                                +5
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Clear a single character's votes
+        function clearCharacterVotes(charId) {
+            const hero = INITIAL_CHARACTERS.find(c => c.id === charId);
+            votes[charId] = 0;
+            tiebreakerWinners = {};
+            saveState();
+            renderAll();
+            if (hero) {
+                showToast(`Removed ${hero.name} from Top 6 slots.`);
+            }
+        }
+
+        // Handle "End Vote" Button Click
+        function handleEndVote() {
+            const votedCount = INITIAL_CHARACTERS.filter(c => (votes[c.id] || 0) > 0).length;
+            if (votedCount === 0) {
+                showToast('Cast some votes first (or click Simulate Votes) before ending the poll!');
+                return;
+            }
+
+            const tieInfo = analyzeBoundaryTie();
+            if (tieInfo.hasTie && !tieInfo.isAlreadyResolved) {
+                openTiebreakerModal(tieInfo);
+            } else {
+                openFinalShowcaseModal();
+            }
+        }
+
+        // Open Tiebreaker Modal when multiple low-voted characters tie for remaining slots
+        function openTiebreakerModal(tieInfo) {
+            currentTieSession = {
+                lockedHeroes: tieInfo.lockedHeroes,
+                tiedCandidates: tieInfo.tiedCandidates,
+                slotsRemaining: tieInfo.slotsRemaining,
+                tiedVoteCount: tieInfo.tiedVoteCount,
+                selectedIds: new Set()
+            };
+
+            const descEl = document.getElementById('tiebreaker-description');
+            descEl.innerHTML = `<strong>${tieInfo.lockedHeroes.length} of 6 slots</strong> are safely locked with higher votes. However, <strong class="text-amber-400">${tieInfo.tiedCandidates.length} characters</strong> are tied with <strong class="text-amber-400">${tieInfo.tiedVoteCount} vote${tieInfo.tiedVoteCount > 1 ? 's' : ''}</strong> each for the remaining <strong class="text-emerald-400">${tieInfo.slotsRemaining} slot${tieInfo.slotsRemaining > 1 ? 's' : ''}</strong>!`;
+
+            const lockedSection = document.getElementById('tiebreaker-locked-section');
+            const lockedList = document.getElementById('tiebreaker-locked-list');
+            if (tieInfo.lockedHeroes.length > 0) {
+                lockedSection.classList.remove('hidden');
+                lockedList.innerHTML = tieInfo.lockedHeroes.map((h, i) => `
+                    <div class="px-3 py-1.5 rounded-xl bg-slate-800/90 border border-slate-700 flex items-center gap-2 text-xs">
+                        <span class="font-extrabold text-amber-400">#${i + 1}</span>
+                        <span>${h.icon}</span>
+                        <span class="font-bold text-white">${h.name}</span>
+                        <span class="text-slate-400">(${votes[h.id]}v)</span>
+                    </div>
+                `).join('');
+            } else {
+                lockedSection.classList.add('hidden');
+            }
+
+            document.getElementById('tiebreaker-Instruction-label').textContent =
+                `Select ${tieInfo.slotsRemaining} character${tieInfo.slotsRemaining > 1 ? 's' : ''} from the ${tieInfo.tiedCandidates.length} tied contenders (${tieInfo.tiedVoteCount} votes each):`;
+
+            renderTiebreakerCandidates();
+
+            const modal = document.getElementById('tiebreaker-modal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function renderTiebreakerCandidates() {
+            const grid = document.getElementById('tiebreaker-candidates-grid');
+            const { tiedCandidates, slotsRemaining, selectedIds, tiedVoteCount } = currentTieSession;
+
+            document.getElementById('tiebreaker-counter').textContent = `${selectedIds.size} / ${slotsRemaining}`;
+            const confirmBtn = document.getElementById('confirm-tiebreaker-btn');
+            confirmBtn.disabled = selectedIds.size !== slotsRemaining;
+
+            grid.innerHTML = tiedCandidates.map(hero => {
+                const isSelected = selectedIds.has(hero.id);
+                return `
+                    <div onclick="toggleTiebreakerCandidate('${hero.id}')" 
+                         class="cursor-pointer rounded-2xl p-4 border-2 transition-all flex items-center gap-3.5 select-none ${
+                             isSelected 
+                                 ? 'bg-amber-500/15 border-amber-400 shadow-lg shadow-amber-500/10 scale-[1.01]' 
+                                 : 'bg-sf-bg/90 border-slate-800 hover:border-slate-600'
+                         }">
+                        ${createHeroAvatarSVG(hero, "w-14 h-14", "text-2xl")}
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center justify-between gap-1">
+                                <span class="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-slate-800 text-amber-400">
+                                    Tied: ${tiedVoteCount} ${tiedVoteCount === 1 ? 'Vote' : 'Votes'}
+                                </span>
+                                <div class="w-6 h-6 rounded-full border-2 flex items-center justify-center ${
+                                    isSelected ? 'bg-amber-500 border-amber-400 text-slate-950' : 'border-slate-600'
+                                }">
+                                    ${isSelected ? '<i class="ph-bold ph-check text-xs"></i>' : ''}
+                                </div>
+                            </div>
+                            <h4 class="font-bold text-base text-white truncate mt-1">${hero.name}</h4>
+                            <p class="text-xs text-slate-400 truncate">${hero.faction} • ${hero.rarity}</p>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function toggleTiebreakerCandidate(charId) {
+            const { selectedIds, slotsRemaining } = currentTieSession;
+            if (selectedIds.has(charId)) {
+                selectedIds.delete(charId);
+            } else {
+                if (selectedIds.size >= slotsRemaining) {
+                    showToast(`You only have ${slotsRemaining} open slot${slotsRemaining > 1 ? 's' : ''} left! Deselect one first.`);
+                    return;
+                }
+                selectedIds.add(charId);
+            }
+            renderTiebreakerCandidates();
+        }
+
+        function autoPickTiebreaker() {
+            const { tiedCandidates, slotsRemaining } = currentTieSession;
+            const shuffled = [...tiedCandidates].sort(() => Math.random() - 0.5);
+            currentTieSession.selectedIds = new Set(shuffled.slice(0, slotsRemaining).map(c => c.id));
+            renderTiebreakerCandidates();
+            showToast(`Randomly selected ${slotsRemaining} tiebreaker winner${slotsRemaining > 1 ? 's' : ''}!`);
+        }
+
+        function confirmTiebreakerWinners() {
+            const { selectedIds } = currentTieSession;
+            tiebreakerWinners = {};
+            let priority = 100;
+            selectedIds.forEach(id => {
+                tiebreakerWinners[id] = priority--;
+            });
+            saveState();
+            closeTiebreakerModal();
+            renderAll();
+            openFinalShowcaseModal();
+        }
+
+        function closeTiebreakerModal() {
+            const modal = document.getElementById('tiebreaker-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        // Open Final 6 Big Showcase Window
+        function openFinalShowcaseModal() {
+            const topSix = getTopSixRanked();
+            const totalVotes = Object.values(votes).reduce((acc, v) => acc + v, 0);
+            document.getElementById('final-total-votes-badge').textContent = `• ${totalVotes.toLocaleString()} Total Poll Votes`;
+
+            const grid = document.getElementById('final-showcase-grid');
+            const factionColors = {
+                Legion: 'from-red-950/60 to-sf-bg border-red-500/40',
+                Dynasty: 'from-emerald-950/60 to-sf-bg border-emerald-500/40',
+                Heralds: 'from-purple-950/60 to-sf-bg border-purple-500/40'
+            };
+
+            let html = '';
+            for (let i = 0; i < 6; i++) {
+                const hero = topSix[i];
+                const rank = i + 1;
+                if (hero) {
+                    const heroVotes = votes[hero.id] || 0;
+                    const pct = totalVotes > 0 ? Math.round((heroVotes / totalVotes) * 100) : 0;
+                    const wonTB = (tiebreakerWinners[hero.id] || 0) > 0;
+
+                    html += `
+                        <div class="slot-card-enter relative rounded-3xl bg-gradient-to-br ${factionColors[hero.faction]} border-2 p-6 flex flex-col justify-between shadow-2xl rarity-glow-${hero.rarity}">
+                            <div class="flex items-center justify-between gap-2">
+                                <span class="px-3.5 py-1 rounded-xl bg-amber-500 text-slate-950 font-display font-extrabold text-sm tracking-wider shadow">
+                                    RANK #${rank} CHAMPION
+                                </span>
+                                ${wonTB ? `
+                                    <span class="px-2.5 py-1 rounded-lg bg-emerald-500/20 border border-emerald-400/50 text-emerald-300 text-xs font-bold flex items-center gap-1">
+                                        <i class="ph-fill ph-lightning"></i> Tiebreaker Winner
+                                    </span>
+                                ` : `
+                                    <span class="text-xs font-bold uppercase tracking-wider text-slate-300 px-2.5 py-1 rounded-lg bg-black/40">
+                                        ${hero.rarity}
+                                    </span>
+                                `}
+                            </div>
+
+                            <div class="flex items-center gap-5 my-6">
+                                ${createHeroAvatarSVG(hero, "w-24 h-24 sm:w-28 sm:h-28", "text-4xl sm:text-5xl")}
+                                <div class="space-y-1.5 min-w-0">
+                                    <span class="text-xs font-bold uppercase tracking-widest text-amber-400 block">${hero.faction} Faction</span>
+                                    <h3 class="font-display font-extrabold text-xl sm:text-2xl text-white truncate">${hero.name}</h3>
+                                    <p class="text-xs sm:text-sm text-slate-300">${hero.weapon}</p>
+                                </div>
+                            </div>
+
+                            <div class="pt-4 border-t border-white/10 flex items-center justify-between">
+                                <div>
+                                    <span class="text-xs text-slate-400 block">Final Poll Score</span>
+                                    <span class="text-xl font-extrabold text-amber-400">${heroVotes.toLocaleString()} Votes</span>
+                                </div>
+                                <div class="text-right">
+                                    <span class="text-xs text-slate-400 block">Vote Share</span>
+                                    <span class="text-lg font-bold text-white">${pct}%</span>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    html += `
+                        <div class="rounded-3xl bg-sf-bg/50 border-2 border-dashed border-slate-800 p-6 flex flex-col items-center justify-center text-center min-h-[240px]">
+                            <span class="font-display font-bold text-2xl text-slate-600 mb-2">SLOT #${rank}</span>
+                            <p class="text-sm text-slate-500">Unfilled Slot (No Votes Cast)</p>
+                        </div>
+                    `;
+                }
+            }
+
+            grid.innerHTML = html;
+
+            const modal = document.getElementById('final-showcase-modal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeFinalShowcaseModal() {
+            const modal = document.getElementById('final-showcase-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        // Test helper: Sets up the exact example scenario (4 high-vote heroes + 7 heroes tied at 3 votes for the last 2 slots)
+        function simulateTieScenario() {
+            INITIAL_CHARACTERS.forEach(c => {
+                votes[c.id] = 0;
+                lastVotedTime[c.id] = 0;
+            });
+            tiebreakerWinners = {};
+
+            // Top 4 clear winners
+            votes['itu'] = 12;
+            votes['kotl'] = 10;
+            votes['lynx'] = 8;
+            votes['monkey_king'] = 6;
+
+            // 7 characters tied at 3 votes competing for Slot #5 and Slot #6
+            const tiedIds = ['marcus', 'kibo', 'sarge', 'shang', 'widow', 'shogun', 'ironclad'];
+            tiedIds.forEach((id, idx) => {
+                votes[id] = 3;
+                lastVotedTime[id] = Date.now() + idx;
+            });
+
+            saveState();
+            renderAll();
+            showToast('Tie Scenario Loaded: 7 heroes tied with 3 votes for the last 2 slots! Click "End Vote".');
+        }
+
+        // Filter & Sort Setters
+        function setFactionFilter(faction) {
+            activeFaction = faction;
+            document.querySelectorAll('.faction-tab').forEach(btn => {
+                btn.className = 'faction-tab px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all flex items-center gap-2 bg-slate-800/80 text-slate-300 hover:bg-slate-700 border border-slate-700/80';
+            });
+            const activeBtn = document.getElementById(`tab-${faction}`);
+            if (activeBtn) {
+                activeBtn.className = 'faction-tab active-tab px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all flex items-center gap-2 bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20';
+            }
+            renderCharacterPoll();
+        }
+
+        function setRarityFilter(rarity) {
+            activeRarity = rarity;
+            renderCharacterPoll();
+        }
+
+        function setSortMode(sortMode) {
+            activeSort = sortMode;
+            renderCharacterPoll();
+        }
+
+        function setSearchQuery(q) {
+            searchQuery = q;
+            const input = document.getElementById('search-input');
+            if (input.value !== q) input.value = q;
+            const clearBtn = document.getElementById('clear-search-btn');
+            if (q.length > 0) {
+                clearBtn.classList.remove('hidden');
+            } else {
+                clearBtn.classList.add('hidden');
+            }
+            renderCharacterPoll();
+        }
+
+        function resetFilters() {
+            activeRarity = 'ALL';
+            document.getElementById('rarity-select').value = 'ALL';
+            setSearchQuery('');
+            setFactionFilter('ALL');
+        }
+
+        // Simulate realistic community votes across characters
+        function simulateCrowdVotes() {
+            const weights = {
+                Legendary: 18,
+                Epic: 14,
+                Rare: 9,
+                Common: 7
+            };
+
+            tiebreakerWinners = {};
+            INITIAL_CHARACTERS.forEach(c => {
+                // Give random boost to about 65% of characters
+                if (Math.random() > 0.35) {
+                    const maxAdd = weights[c.rarity] || 10;
+                    const added = Math.floor(Math.random() * maxAdd) + 1;
+                    if ((votes[c.id] || 0) === 0) {
+                        lastVotedTime[c.id] = Date.now() + Math.random() * 1000;
+                    }
+                    votes[c.id] = (votes[c.id] || 0) + added;
+                }
+            });
+
+            saveState();
+            renderAll();
+            showToast('Simulated community poll votes! Top 6 slots updated.');
+        }
+
+        // Reset all votes back to 0
+        function resetAllVotes() {
+            INITIAL_CHARACTERS.forEach(c => {
+                votes[c.id] = 0;
+                lastVotedTime[c.id] = 0;
+            });
+            tiebreakerWinners = {};
+            saveState();
+            renderAll();
+            showToast('All votes cleared! The 6 slots are now empty.');
+        }
+
+        // Share / Copy Top 6 summary to clipboard
+        function copyResultsToClipboard() {
+            const topSix = getTopSixRanked();
+            if (topSix.length === 0) {
+                showToast('Vote for at least 1 character before sharing!');
+                return;
+            }
+
+            let lines = ['⚔️ SHADOW FIGHT 4: ARENA - TOP 6 POLL ROSTER ⚔️'];
+            topSix.forEach((c, idx) => {
+                lines.push(`#${idx + 1} ${c.name} (${c.faction} • ${c.rarity}) — ${votes[c.id]} Votes`);
+            });
+
+            const textArea = document.createElement('textarea');
+            textArea.value = lines.join('\n');
+            document.body.appendChild(textArea);
+            textArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textArea);
+
+            showToast('Top 6 Roster copied to clipboard!');
+        }
+
+        // Modal Functions
+        function openAnalysisModal() {
+            const modal = document.getElementById('analysis-modal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeAnalysisModal() {
+            const modal = document.getElementById('analysis-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        // Toast Helper
+        let toastTimer = null;
+        function showToast(message) {
+            const box = document.getElementById('toast-box');
+            const text = document.getElementById('toast-text');
+            text.textContent = message;
+            box.classList.remove('opacity-0', 'translate-y-3');
+            box.classList.add('opacity-100', 'translate-y-0');
+
+            if (toastTimer) clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => {
+                box.classList.add('opacity-0', 'translate-y-3');
+                box.classList.remove('opacity-100', 'translate-y-0');
+            }, 2400);
+        }
+
+        function renderAll() {
+            renderTopSixSlots();
+            renderCharacterPoll();
+        }
+
+        // Initialize on Window Load
+        window.onload = function () {
+            loadState();
+            renderAll();
+        };
+    </script>
+</body>
+</html>
